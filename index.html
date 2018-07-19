@@ -10,6 +10,9 @@
 	function LuaString(str) {
 		return enc.encode(str);
 	}
+	function JavascriptString(str) {
+		return dec.decode(str);
+	}
 
 	var lauxlib = fengari.lauxlib;
 	var lualib = fengari.lualib;
@@ -21,7 +24,7 @@
 		var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
 
 		if (err !== 0) {
-			err = new Error(dec.decode(lua.lua_tostring(L, -1)));
+			err = new Error(JavascriptString(lua.lua_tostring(L, -1)));
 			lua.lua_pop(L, 1);
 
 			throw err;
@@ -41,6 +44,6 @@
 
 	var L = fengari.L;
 
-	RunString(L, "print('penis')");
+	RunString(L, "package.path = (';'..package.path):gsub(';./', ';./PathOfBuilding'):sub(2)");
 	RunFile(L, "HeadlessWrapper.lua");
 </script>
