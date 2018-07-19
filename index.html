@@ -1,63 +1,46 @@
 <!doctype html>
 
-<script src="fengari-web.js"></script>
+<body>
+	<canvas id="render"></canvas>
+	<script src="fengari-web.js"></script>
+	<script src="renderer.js"></script>
+	<script>
+		var enc = new TextEncoder();
+		var dec = new TextDecoder();
 
-<script>
-	var enc = new TextEncoder();
-	var dec = new TextDecoder();
 
+		var lauxlib = fengari.lauxlib;
+		var lualib = fengari.lualib;
+		var lua = fengari.lua;
 
-	var lauxlib = fengari.lauxlib;
-	var lualib = fengari.lualib;
-	var lua = fengari.lua;
+		LuaString = fengari.to_luastring
+		JavascriptString = lua.lua_tojsstring;
 
-	LuaString = fengari.to_luastring
-	JavascriptString = lua.lua_tojsstring;
+		var newline_replace = /^#[^\n]+/;
 
-	var newline_replace = /^#[^\n]+/;
+		var Lmain = fengari.L;
 
-	var Lmain = fengari.L;
+		function RunString(L, str) {
+			var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
 
-	function RunString(L, str) {
-		var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
+			if (err !== 0) {
+				err = new Error(JavascriptString(lua.lua_tostring(L, -1)));
+				lua.lua_pop(L, 1);
 
-		if (err !== 0) {
-			err = new Error(JavascriptString(lua.lua_tostring(L, -1)));
-			lua.lua_pop(L, 1);
+				throw err;
+			}
 
-			throw err;
+			lua.lua_call(L, 0, 0);
 		}
 
-		let x = undefined;
-
-		x = function()
-		{
-			if ( lua.lua_resume(L, null, 0) == lua.LUA_YIELD )
-				setTimeout(x, 0);
-
-			let data = lua.lua_tostring(L, -1);
-
-			console.log( "Resuming = ", data ? dec.decode(data) : "<none>" );
+		function RunFile(L, fname) {
+			return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
 		}
 
-		x();
-	}
 
-	function RunFile(L, fname) {
-		return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
-	}
+		var L = window.L = Lmain;
 
-	
-
-	/*fengari.to_uristring_override = function(str) {
-		console.log(JavascriptString(str));
-		return fengari.to_uristring(LuaString("./PathOfBuilding/" + JavascriptString(str)) );
-	}*/
-
-	var L = lua.lua_newthread(Lmain);
-
-	console.log( "Starting Application" );
-	RunString(L, "dofile'./detours.lua' dofile'./../application.lua'");
-
-
-</script>
+		console.log( "Starting Application" );
+		RunString(L, "dofile'./detours.lua' dofile'./../application.lua'");
+	</script>
+</body>
