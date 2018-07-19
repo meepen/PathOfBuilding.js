@@ -27,17 +27,10 @@ end
 local imageHandleClass = { }
 imageHandleClass.__index = imageHandleClass
 function NewImageHandle()
-	return setmetatable({ }, imageHandleClass)
+	return setmetatable({}, {__index = imageHandleClass})
 end
-function imageHandleClass:Load(fileName, ...)
-	self.valid = true
-end
-function imageHandleClass:Unload()
-	self.valid = false
-end
-function imageHandleClass:IsValid()
-	return self.valid
-end
+function imageHandleClass:Load(fileName, ...) end
+function imageHandleClass:Unload() end
 function imageHandleClass:SetLoadingPriority(pri) end
 function imageHandleClass:ImageSize()
 	return 1, 1
@@ -46,7 +39,7 @@ end
 -- Rendering
 function RenderInit() end
 function GetScreenSize()
-	return 1920, 1080
+	return 1280, 720
 end
 function SetClearColor(r, g, b, a) end
 function SetDrawLayer(layer, subLayer) end
@@ -143,6 +136,7 @@ function PCall(func, ...)
 end
 function ConPrintf(fmt, ...)
 	-- Optional
+	-- check if our main thread
 	print(string.format(fmt, ...))
 end
 function ConPrintTable(tbl, noRecurse) end
@@ -157,6 +151,7 @@ function Exit() end
 dofile("Launch.lua")
 
 runCallback("OnInit")
+
 runCallback("OnFrame") -- Need at least one frame for everything to initialise
 
 if mainObject.promptMsg then
@@ -189,7 +184,6 @@ end
 
 
 -- Now you can mess around!
-
 
 -- Probably optional
 runCallback("OnExit")

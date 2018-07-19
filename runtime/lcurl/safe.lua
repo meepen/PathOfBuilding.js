@@ -249,10 +249,18 @@ function CURL:perform()
 end
 
 function CURL:close()
+    -- It's an image, initiate hack #138
+    if string.find(self.url, "%.png") then
+        self.fn(self.url)
+        return
+    end
+
+    -- It's hopefully one of our files
 	local data = KnownURLs[self.url]
 
 	if data then
-		self.fn( data )
+		self.fn(data)
+        return
 	end
 end
 

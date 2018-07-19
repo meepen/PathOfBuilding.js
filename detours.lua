@@ -1,4 +1,4 @@
-local js = require("js")
+local js = { global = { localStorage = {} } }
 
 package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 
@@ -35,7 +35,7 @@ function FILE:read(what)
     end
 end
 function FILE:write(...)
-    if self.mode ~= "w" then
+    if self.mode ~= "w" and self.mode ~= "wb" then
         return
     end
 
@@ -49,7 +49,7 @@ function io.open(fpath, mode)
     if (mode:find "r" and not fs[fpath]) then
         return
     end
-    if (mode == "w") then
+    if (mode == "w" or mode == "wb") then
         fs[fpath] = ""
     end
     return setmetatable({
@@ -131,5 +131,16 @@ do
 
         if success then return output end
         return "(Failed) " .. format
+    end
+end
+
+do
+    local original = require
+
+    function require( lib, ... )
+        print( "Loading", lib )
+        local ret =  original( lib, ... )
+        print( "Loaded", lib )
+        return ret
     end
 end
