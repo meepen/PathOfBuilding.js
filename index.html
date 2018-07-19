@@ -3,12 +3,11 @@
 <script src="fengari-web.js"></script>
 
 <script>
-	var L = fengari.lauxlib.luaL_newstate();
-	console.log(L);
-	fengari.lualib.luaL_openlibs(L);
-	console.log(fengari.lauxlib.luaL_dostring( L, "a=true print( 'penis' )" ));
-</script>
+	var enc = new TextEncoder();
+	LuaString = function(str) {
+		return enc.encode(str);
+	}
 
-<script type="application/lua"> 
-print(a)
+	var L = fengari.L;
+	fengari.lauxlib.luaL_dostring(L, LuaString("print('penis')"));
 </script>
