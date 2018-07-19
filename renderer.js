@@ -26,9 +26,9 @@ render.Insert = function Insert(obj) {
 function sorter(a, b) {
     if (a.layer == b.layer) {
         if (a.subLayer == b.subLayer) {
-            return a.count - b.count;
+            return b.count - a.count;
         }
-        return a.subLayer - b.subLayer;
+        return b.subLayer - a.subLayer;
     }
     return a.layer - b.layer;
 }
@@ -43,6 +43,7 @@ render.AdvanceFrame = function AdvanceFrame() {
     RunString(L, 'runCallback("OnFrame")');
 
     var queue = render.queue;
+    render.last_queue = queue.slice()
     queue.sort(sorter)
     for (; queue.length;) {
         var obj = queue.pop();
@@ -78,6 +79,31 @@ render.SetViewport = function SetViewport(x, y, width, height) {
 }
 
 render.SetDrawColor = function SetDrawColor(r, g, b, a) {
+    if (typeof r === "string") {
+        if (r[0] != '^') {
+            console.log("not implemented: non caret color string");
+            return;
+        }
+        if (r[1] == 'x') {
+            b = parseInt(r.slice(-2), 16);
+            g = parseInt(r.slice(-4, -2), 16);
+            r = parseInt(r.slice(-6, -4), 16);
+            a = 1;
+        }
+        if (r.length == 2) {
+            r = g = b = parseInt(r.slice(-1).repeat(2), 16);
+            a = 1;
+        }
+    }
+    else {
+        r *= 255;
+        g *= 255;
+        b *= 255;
+    }
+
+    if (a === undefined)
+        a = 1;
+
     this.Insert({
         r: r,
         g: g,
@@ -88,7 +114,7 @@ render.SetDrawColor = function SetDrawColor(r, g, b, a) {
 }
 
 render.DrawImage = function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom) {
-    if (false && imgHandle) {
+    if (imgHandle) {
         this.Insert({
             left: left,
             top: top,
