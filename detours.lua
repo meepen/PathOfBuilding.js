@@ -1,15 +1,6 @@
 local js = require("js")
 
--- cache the requires to runtime libraries
-package.path = "./runtime/?.lua"
-
-require("xml")
-require("dkjson")
-require("sha1")
-require("base64")
-
--- override the package path and dofile paths to go into submodules
-package.path = "./PathOfBuilding/?.lua"
+package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 
 local _dofile = dofile
 function dofile(fpath, ...)
@@ -43,11 +34,23 @@ function FILE:read(what)
         error("not implemented: "..what)
     end
 end
+function FILE:write(...)
+    if self.mode ~= "w" then
+        return
+    end
+
+    for _, data in pairs{...--[[sue me]]} do
+        fs[self.path] = fs[self.path] .. data
+    end
+end
 
 
 function io.open(fpath, mode)
     if (mode:find "r" and not fs[fpath]) then
         return
+    end
+    if (mode == "w") then
+        fs[fpath] = ""
     end
     return setmetatable({
         path = fpath,
@@ -58,10 +61,22 @@ end
 -- 5.1 compat
 unpack = table.unpack
 bit = {
+    band = function(val, ...)
+        for i = 2, select("#", ...) do
+            val = val & (select(i, ...))
+        end
+
+        return val
+    end,
     bor = function(val, ...)
         for i = 2, select("#", ...) do
             val = val | (select(i, ...))
         end
+
+        return val
+    end,
+    bnot = function(val)
+        return ~val
     end
 }
 
@@ -101,4 +116,20 @@ function pairs(t)
         last = 0,
         done = {}
     }
+end
+
+function loadstring(str)
+    return load(str, nil, "t")
+end
+
+-- string.format safety net
+do
+    local original = string.format
+
+    function string.format( format, ... )
+        local success, output = pcall( original, format, ... )
+
+        if success then return output end
+        return "(Failed) " .. format
+    end
 end
