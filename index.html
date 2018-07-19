@@ -1,22 +1,18 @@
 <!doctype html>
 
 <script src="fengari-web.js"></script>
-<script type="application/javascript" src="./filesystem.pach"></script>
 
 <script>
 	var enc = new TextEncoder();
 	var dec = new TextDecoder();
 
-	function LuaString(str) {
-		return enc.encode(str);
-	}
-	function JavascriptString(str) {
-		return dec.decode(str);
-	}
 
 	var lauxlib = fengari.lauxlib;
 	var lualib = fengari.lualib;
 	var lua = fengari.lua;
+
+	LuaString = fengari.to_luastring
+	JavascriptString = lua.lua_tojsstring;
 
 	var newline_replace = /^#[^\n]+/;
 
@@ -34,16 +30,16 @@
 	}
 
 	function RunFile(L, fname) {
-		var file_contents = filesystem[fname];
-		if (file_contents === undefined) {
-			throw new Error("no file " + fname);
-		}
-
-		return RunString(L, file_contents);
+		return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
 	}
 
 	var L = fengari.L;
 
-	RunString(L, "package.path = (';'..package.path):gsub(';./', ';./PathOfBuilding'):sub(2)");
-	RunFile(L, "HeadlessWrapper.lua");
+	/*fengari.to_uristring_override = function(str) {
+		console.log(JavascriptString(str));
+		return fengari.to_uristring(LuaString("./PathOfBuilding/" + JavascriptString(str)) );
+	}*/
+
+	RunString(L, "dofile'./detours.lua'");
+	RunFile(L, "HeadlessWrapper");
 </script>
