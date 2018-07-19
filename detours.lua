@@ -64,60 +64,41 @@ bit = {
         end
     end
 }
---[[
+
 local _pairs = pairs
 
 -- repair regular pairs behavior from lua/luajit
 -- basically does ipairs first, then any other values
-local ipairs_aux = ipairs(t, nil)
+local ipairs_aux = ipairs({}, nil)
 
-local function pairs_aux(t, k)
-    if (k == nil) then
-        return t.first_k, t.t[t.first_k]
-    else
-        local k = t.iter[k]
-        return k, t.t[k]
+local function n(val)
+    local t = val.t
+    if (not val.max) then
+        local k, v = ipairs_aux(t, val.last)
+        if (k) then
+            val.done[k] = true
+            val.last = k
+            return k, t[k]
+        end
+        val.max = true
+        val.last = nil
     end
+    local pairs_aux = _pairs(t)
+    local k, v = val.last
+    repeat
+        k, v = pairs_aux(t, k)    
+    until not k or not val.done[k]
+    if (k) then
+        val.done[k] = true
+    end
+    val.last = k
+    return k, t[k]
 end
 
-function pairs2(t)
-    local function n(val)
-        local t = val
-        if (not val.max) then
-            local k, v = ipairs_aux(t, val.last)
-            if (k) then
-                val.done[k] = true
-                val.last = k
-                return k, v
-            end
-            val.max = true
-            val.last = nil
-        end
-        local pairs_aux = _pairs(t, k)
-        local k, v = val.last
-        repeat
-            k, v = pairs_aux(t, val.last)    
-        until not k or not val.done[k]
-        val.last = k
-        return val, k
-    end
-
-    local last_k, first_k = {}
-    local start_k = last_k
-
-    local values = {
-        t = t,
-        iter = {}
-    }
-
-    for _, k in n, {
+function pairs(t)
+    return n, {
         t = t,
         last = 0,
         done = {}
-    } do
-        values.iter[last_k] = k
-        last_k = k
-    end
-
-    return pairs_aux, values, start_k
-end]]
+    }
+end
