@@ -13,11 +13,11 @@ package.path = "./PathOfBuilding/?.lua"
 
 local _dofile = dofile
 function dofile(fpath, ...)
-    return _dofile('./PathOfBuilding/'..fpath)
+    return _dofile("./PathOfBuilding/"..fpath)
 end
 local _loadfile = loadfile
 function loadfile(fpath, ...)
-    return _loadfile('./PathOfBuilding/'..fpath)
+    return _loadfile("./PathOfBuilding/"..fpath)
 end
 
 -- create a fake io library
