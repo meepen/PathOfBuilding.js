@@ -27,4 +27,4 @@ walkSync("PathOfBuilding/").forEach(function(filePath) {
 	fileData[filePath.replace(/^PathOfBuilding\//, '')] = fs.readFileSync(filePath, "utf8");
 } );
 
-fs.writeFileSync("filesystem.pach", JSON.stringify(fileData, null, '\t'));
+fs.writeFileSync("filesystem.pach", "filesystem = " + JSON.stringify(fileData, null, '\t'));

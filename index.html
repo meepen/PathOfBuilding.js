@@ -1,13 +1,46 @@
 <!doctype html>
 
 <script src="fengari-web.js"></script>
+<script type="application/javascript" src="./filesystem.pach"></script>
 
 <script>
 	var enc = new TextEncoder();
-	LuaString = function(str) {
+	var dec = new TextDecoder();
+
+	function LuaString(str) {
 		return enc.encode(str);
 	}
 
+	var lauxlib = fengari.lauxlib;
+	var lualib = fengari.lualib;
+	var lua = fengari.lua;
+
+	var newline_replace = /^#[^\n]+/;
+
+	function RunString(L, str) {
+		var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
+
+		if (err !== 0) {
+			err = new Error(dec.decode(lua.lua_tostring(L, -1)));
+			lua.lua_pop(L, 1);
+
+			throw err;
+		}
+
+		lua.lua_call(L, 0, 0);
+	}
+
+	function RunFile(L, fname) {
+		var file_contents = filesystem[fname];
+		if (file_contents === undefined) {
+			throw new Error("no file " + fname);
+		}
+
+		return RunString(L, file_contents);
+	}
+
 	var L = fengari.L;
-	fengari.lauxlib.luaL_dostring(L, LuaString("print('penis')"));
+
+	RunString(L, "print('penis')");
+	RunFile(L, "HeadlessWrapper.lua");
 </script>
