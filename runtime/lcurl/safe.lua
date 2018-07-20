@@ -250,7 +250,7 @@ end
 
 function CURL:close()
     -- It's an image, initiate hack #138
-    if string.find(self.url, "%.png") then
+    if string.find(self.url, "%.png") or string.find(self.url, "%.gif") or string.find(self.url, "%.jpg") then
         self.fn(self.url)
         return
     end
