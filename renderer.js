@@ -109,9 +109,9 @@ render.AdvanceFrame = function AdvanceFrame() {
                     case "SetDrawColor":
                         break;
                     case "DrawImage":
-                        console.log( "Drawing", obj );
+                        var imgEntry = this.images[obj.image];
 
-                        if (!this.images[obj.image]) {
+                        if (!imgEntry || imgEntry.error) {
                             var oldFillStyle = ctx.fillStyle;
                             ctx.fillStyle ='pink';
                             ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
@@ -119,7 +119,7 @@ render.AdvanceFrame = function AdvanceFrame() {
                             break;
                         }
 
-                        var img = this.images[obj.image].image;
+                        var img = imgEntry.image;
 
                         if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
                         {
@@ -383,6 +383,7 @@ render.LoadImage = function LoadImage(name) {
         width: 0,
         height: 0,
         loaded: false,
+        error: false,
         image: document.createElement("img"),
     };
 
@@ -393,7 +394,10 @@ render.LoadImage = function LoadImage(name) {
         obj.loaded = true;
     } );
 
-    obj.image.onerror = ( () => obj.loaded = true );
+    obj.image.onerror = ( () => {
+        obj.loaded = true;
+        obj.error = true;
+    } );
 
     obj.image.src = localStorage[name];
 
