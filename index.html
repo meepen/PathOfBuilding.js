@@ -57,32 +57,22 @@
                 // pathofbuilding code
 
                 var L = window.L = lua.luaL_newstate();
-        
-                var callbacks = {};
-                var i = 0;
-                window.ContinueThread = function ContinueThread(L, nargs) {
-                    if (++i == 2000) {
-                        i = 0;
-                        return setTimeout(ContinueThread, 0, L, nargs);
-                    }
-                    var res;
-                    if (1 == (res = lua.lua_resume(L, 0, nargs || 0))) {
+
+                window.ContinueThread = function ContinueThread(L, onFinish) {
+                    var ret = lua.lua_resume(L, 0, 0);
+                    if (ret == 1) {
                         var str = lua.lua_tostring(L, 1);
                         console.log("yielding: " + str);
                         lua.lua_pop(L, 1);
-                        return setTimeout(ContinueThread, 0, L, 0);
+                        return setTimeout(ContinueThread, 100, L, onFinish);
                     }
-                    else if (res != 0) {
+                    else if (ret != 0) {
                         console.log("error: " + lua.lua_tostring(L, -1));
                         lua.lua_pop(L, 1);
+                        return;
                     }
-                    else if (callbacks[L]) {
-                        callbacks[L]();
-                        delete callbacks[L];
-                    }
-                    else {
-                        console.log("no callback finale for thread");
-                    }
+                    
+                    onFinish();
                 }
         
                 window.RunMainThread = function RunMainThread(Lmain, str) {
@@ -97,10 +87,8 @@
             
                             rej(err);
                         }
-            
-                        callbacks[L] = res;
-            
-                        ContinueThread(L);
+
+                        ContinueThread(L, res);
                         lua.lua_pop(Lmain, 1);
                     });
                 }

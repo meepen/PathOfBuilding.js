@@ -32,38 +32,6 @@ render.Insert = function Insert(obj) {
     render.queue.push(obj);
 }
 
-function not_implemented(L) {
-    ContinueThread(L);
-}
-
-function wrap() {
-    var args = arguments;
-    return function(L) {
-        var r = [];
-        for (let i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "string":
-                    if (lua.lua_type(L, i + 2) == 4)
-                        r.push(lua.lua_tostring(L, i + 2));
-                    else
-                        r.push(null);
-                    break;
-                case "number":
-                    if (lua.lua_type(L, i + 2) == 3)
-                        r.push(lua.lua_tonumber(L, i + 2));
-                    else
-                        r.push(null);
-                    break;
-                default:
-                    break;
-            }
-        }
-        render[lua.lua_tostring(L, 1)].apply(render, r);
-        ContinueThread(L)
-    }
-}
-
-
 function sorter(a, b) {
     if (a.layer == b.layer) {
         if (a.subLayer == b.subLayer) {
