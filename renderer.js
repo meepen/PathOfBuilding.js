@@ -37,12 +37,15 @@ function sorter(a, b) {
         }
         return b.subLayer - a.subLayer;
     }
-    return a.layer - b.layer;
+    return b.layer - a.layer;
 }
 
 render.AdvanceFrame = function AdvanceFrame() {
     this.renderCount = 0;
     this.queue = [];
+
+    this.layer = 0;
+    this.subLayer = 0;
 
     // call lua OnFrame
     // render from queue
@@ -207,8 +210,12 @@ render.StringToFormattedArray = function StringToFormattedArray(str) {
 }
 
 render.SetDrawLayer = function(layer, subLayer) {
-    this.layer = layer;
-    this.subLayer = subLayer;
+    if (layer !== undefined)
+        this.layer = layer;
+    if (subLayer !== undefined)
+        this.subLayer = subLayer;
+    else
+        this.subLayer = 0;
 }
 
 render.SetViewport = function SetViewport(x, y, width, height) {
