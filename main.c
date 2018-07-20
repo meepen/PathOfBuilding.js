@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <emscripten.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -116,6 +117,36 @@ static int SetTitle(lua_State *L) {
 	return 0;
 }
 
+static int AppendFile(lua_State *L) {
+	EM_ASM_(({
+		localStorage[Pointer_stringify($0)] += Pointer_stringify($1);
+	}), lua_tostring(L, 1), lua_tostring(L, 2));
+	return 0;
+}
+static int SetFileData(lua_State *L) {
+	EM_ASM_(({
+		localStorage[Pointer_stringify($0)] = Pointer_stringify($1);
+	}), lua_tostring(L, 1), lua_tostring(L, 2));
+	return 0;
+}
+static int GetFileData(lua_State *L) {
+	char *str = (char *)EM_ASM_INT(({
+		var str = localStorage[Pointer_stringify($0)];
+		if (str === undefined)
+			return 0;
+		var bufferSize = Module.lengthBytesUTF8(str);
+		var bufferPtr = Module._malloc(bufferSize + 1);
+		Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
+		return bufferPtr;
+	}), lua_tostring(L, 1));
+
+	lua_pushstring(L, str);
+
+	free(str);
+
+	return 1;
+}
+
 struct reg emscripten[] = {
 	{"run", &run},
 	{"SetDrawColor", &SetDrawColor},
@@ -125,6 +156,9 @@ struct reg emscripten[] = {
 	{"SetViewport", &SetViewport},
 	{"GetCursorPos", &GetCursorPos},
 	{"SetTitle", &SetTitle},
+	{"GetFileData", &GetFileData},
+	{"AppendFile", &AppendFile},
+	{"SetFileData", &SetFileData},
 	{0, 0}
 };
 

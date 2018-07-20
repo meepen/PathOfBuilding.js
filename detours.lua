@@ -1,3 +1,5 @@
+local js = require "emscripten"
+
 package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 
 function loadfile(str)
@@ -9,18 +11,11 @@ end
 
 -- create a fake io library
 io = {}
-local FS = {}
-function FS:__index(what)
-    return coroutine.yield("localStorage", what);
-end
-function FS:__newindex(what, val)
-    coroutine.yield("localStorageSet", what, val);
-end
-local fs = setmetatable({}, {__index = FS})
+
 -- don't check for updates
-fs["UpdateCheck.lua"] = ""
+js.SetFileData("UpdateCheck.lua", "")
 -- don't run first run files
-fs["first.run"] = nil
+js.SetFileData("first.run", nil)
 
 local FILE = {}
 local FILE_MT = {
@@ -32,7 +27,7 @@ function FILE:flush()
 end
 function FILE:read(what)
     if (what == "*a") then
-        return fs[self.path]
+        return js.GetFileData(self.path)
     else
         error("not implemented: "..what)
     end
@@ -43,17 +38,17 @@ function FILE:write(...)
     end
 
     for _, data in pairs{...--[[sue me]]} do
-        fs[self.path] = fs[self.path] .. data
+        js.AppendFile(self.path, data)
     end
 end
 
 
 function io.open(fpath, mode)
-    if (mode:find "r" and not fs[fpath]) then
+    if (mode:find "r" and not js.GetFileData(fpath)) then
         return
     end
     if (mode == "w" or mode == "wb") then
-        fs[fpath] = ""
+        js.SetFileData(fpath, "")
     end
     return setmetatable({
         path = fpath,
