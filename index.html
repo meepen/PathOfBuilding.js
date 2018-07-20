@@ -138,10 +138,6 @@
                         })
                     })
                 }
-                lua_callbacks["title"] = function title(L) {
-                    document.title = lua.lua_tostring(L, 2);
-                    ContinueThread(L, 0);
-                }
 
                 loadScript("renderer.js").then(() => {
                     console.log("Starting Application");

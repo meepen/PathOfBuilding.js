@@ -291,7 +291,7 @@ render.SetDrawLayer = function(layer, subLayer) {
     else
         this.subLayer = 0;
 }
-lua_callbacks["SetDrawLayer"] = wrap("number", "number");
+
 render.SetViewport = function SetViewport(x, y, width, height) {
     this.Insert({
         x: x,
@@ -301,7 +301,6 @@ render.SetViewport = function SetViewport(x, y, width, height) {
         type: "SetViewport"
     });
 }
-lua_callbacks["SetViewport"] = wrap("number", "number", "number", "number");
 
 render.SetDrawColor = function SetDrawColor(r, g, b, a) {
     if (typeof r == "string") {
@@ -374,15 +373,6 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     this.Insert({
         type: "DrawStringCursorIndex"
     });
-}
-
-lua_callbacks["DrawStringWidth"] = function(L) {
-    var height = lua.lua_tonumber(L, 2);
-    var font = lua.lua_tostring(L, 3);
-    var text = lua.lua_tostring(L, 4);
-
-    lua.lua_pushnumber(L, render.DrawStringWidth(height, font, text));
-    ContinueThread(L, 1);
 }
 
 lua_callbacks["LoadImage"] = function(L) {

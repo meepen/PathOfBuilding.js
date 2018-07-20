@@ -83,6 +83,18 @@ static int DrawString(lua_State *L) {
 	return 0;
 }
 
+static int DrawStringWidth(lua_State *L) {
+	int width = EM_ASM_INT(({
+		return render.DrawStringWidth($0, Pointer_stringify($1), Pointer_stringify($2)); 
+	}),
+		lua_tonumber(L, 1), 
+		lua_tostring(L, 2),
+		lua_tostring(L, 3));
+
+	lua_pushnumber(L, width);
+	return 1;
+}
+
 static int SetDrawLayer(lua_State *L) {
 	if (lua_type(L, 1) == LUA_TNUMBER) {
 		if (lua_type(L, 2) == LUA_TNUMBER) {
@@ -184,6 +196,7 @@ struct reg emscripten[] = {
 	{"DrawImage", &DrawImage},
 	{"DrawImageQuad", &DrawImageQuad},
 	{"DrawString", &DrawString},
+	{"DrawStringWidth", &DrawStringWidth},
 	{"SetDrawLayer", &SetDrawLayer},
 	{"SetViewport", &SetViewport},
 	{"GetCursorPos", &GetCursorPos},
