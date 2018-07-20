@@ -124,14 +124,14 @@ static int AppendFile(lua_State *L) {
 	return 0;
 }
 static int SetFileData(lua_State *L) {
-	if (lua_type(L, 1) == LUA_TSTRING) {
+	if (lua_type(L, 2) == LUA_TSTRING) {
 		EM_ASM_(({
 			localStorage[Pointer_stringify($0)] = Pointer_stringify($1);
 		}), lua_tostring(L, 1), lua_tostring(L, 2));
 	}
 	else {
 		EM_ASM_(({
-			localStorage[Pointer_stringify($0)] = undefined;
+			delete localStorage[Pointer_stringify($0)];
 		}), lua_tostring(L, 1));
 	}
 	return 0;
