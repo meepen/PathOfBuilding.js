@@ -16,8 +16,6 @@ io = {}
 js.SetFileData("UpdateCheck.lua", "")
 -- don't run first run files
 js.SetFileData("first.run", nil)
-print(js.GetFileData("first.run"))
-error();
 
 local FILE = {}
 local FILE_MT = {
