@@ -66,6 +66,20 @@ render.AdvanceFrame = function AdvanceFrame() {
                 ctx.drawImage(img, obj.left, obj.top, obj.width, obj.height);
 
                 break;
+            case "DrawString":
+                // TODO: separate _x crap
+                if ( obj.align == "LEFT" || obj.align == "LEFT_X" )
+                    ctx.textAlign = "left";
+                else if ( obj.align == "RIGHT" || obj.align == "RIGHT_X" )
+                    ctx.textAlign = "right";
+                else if ( obj.align == "CENTER" || obj.align == "CENTER_X" )
+                    ctx.textAlign = "center";
+
+                ctx.font = "" + ( obj.height - 2 ) + "px Arial";
+                ctx.textBaseline = "top";
+                ctx.fillText(obj.text, obj.left, obj.top);
+                break;
+
             default:
                 console.log("not implemented: " + obj.type);
         }
@@ -151,8 +165,13 @@ render.DrawImageQuad = function DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y
         type: "DrawImageQuad"
     });
 }
-render.DrawString = function DrawString() {
+render.DrawString = function DrawString(left, top, align, height, font, text) {
     this.Insert({
+        left: left,
+        top: top,
+        align: align,
+        height: height,
+        text: text,
         type: "DrawString"
     });
 }
