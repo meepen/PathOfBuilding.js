@@ -3,6 +3,7 @@ canvas.width = 1280;
 canvas.height = 720;
 
 var ctx = canvas.getContext("2d");
+ctx.save();
 
 /*
 // we can rescale easily like this:
@@ -46,12 +47,16 @@ render.AdvanceFrame = function AdvanceFrame() {
     var queue = this.queue;
     this.last_queue = queue.slice()
     queue.sort(sorter)
+
+    var clipping_enabled = false;
+    var offset_x = 0, offset_y = 0;
+
     for (; queue.length;) {
         var obj = queue.pop();
 
         switch (obj.type) {
             case "DrawRect":
-                ctx.fillRect(obj.left, obj.top, obj.width, obj.height);
+                ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
                 break;
             case "SetDrawColor":
                 ctx.fillStyle = "rgba(" + obj.r + "," + obj.b + "," + obj.b + "," + obj.a + ")";
@@ -63,9 +68,34 @@ render.AdvanceFrame = function AdvanceFrame() {
                     break;
                 }
 
-                ctx.drawImage(img, obj.left, obj.top, obj.width, obj.height);
+                ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
 
                 break;
+
+            case "SetViewport":
+                var textBaseline = ctx.textBaseline;
+                var fillStyle = ctx.fillStyle;
+                var textAlign = ctx.textAlign;
+                var font = ctx.font;
+                offset_x = 0;
+                offset_y = 0;
+                ctx.restore();
+                ctx.save();
+                if (obj.x !== undefined) {
+                    ctx.beginPath();
+                    ctx.rect(obj.x, obj.y, obj.width, obj.height);
+                    ctx.clip();
+
+                    offset_x = obj.x;
+                    offset_y = obj.y;
+
+                    ctx.textBaseline = textBaseline;
+                    ctx.fillStyle = fillStyle;
+                    ctx.textAlign = textAlign;
+                    ctx.font = font;
+                }
+                break;
+
             case "DrawString":
                 // TODO: separate _x crap
                 if ( obj.align == "LEFT" || obj.align == "LEFT_X" )
@@ -77,7 +107,7 @@ render.AdvanceFrame = function AdvanceFrame() {
 
                 ctx.font = "" + ( obj.height - 2 ) + "px Arial";
                 ctx.textBaseline = "top";
-                ctx.fillText(obj.text, obj.left, obj.top);
+                ctx.fillText(obj.text, obj.left + offset_x, obj.top + offset_y);
                 break;
 
             default:
@@ -99,7 +129,7 @@ render.SetViewport = function SetViewport(x, y, width, height) {
         y: y,
         width: width,
         height: height,
-        type: "SetViewPort"
+        type: "SetViewport"
     });
 }
 
