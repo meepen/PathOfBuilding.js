@@ -81,8 +81,7 @@ function DrawString(left, top, align, height, font, text)
 	js.DrawString(left, top, align, height, font, text)
 end
 function DrawStringWidth(height, font, text)
-	--yield("DrawStringWidth", height, font, text)
-	return 8 * text:len()
+	return coroutine.yield("DrawStringWidth", height, font, text)
 end
 function DrawStringCursorIndex(height, font, text, cursorX, cursorY)
 	return 0

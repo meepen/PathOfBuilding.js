@@ -154,7 +154,7 @@ render.AdvanceFrame = function AdvanceFrame() {
                         else if ( obj.align == "CENTER" || obj.align == "CENTER_X" )
                             ctx.textAlign = "center";
 
-                        ctx.font = "" + ( obj.height - 2 ) + "px Arial";
+                        ctx.font = "" + (obj.height - 2) + "px " + (obj.font == "FIXED" ? "monospace" : "sans-serif");
                         ctx.textBaseline = "top";
                         var originalStyle = ctx.fillStyle;
 
@@ -319,15 +319,15 @@ render.DrawString = function DrawString(left, top, align, height, font, text) {
         top: top,
         align: align,
         height: height,
+        font: font,
         text: text,
         type: "DrawString"
     });
 }
 
-render.DrawStringWidth = function DrawStringWidth() {
-    this.Insert({
-        type: "DrawStringWidth"
-    });
+render.DrawStringWidth = function DrawStringWidth(height, font, text) {
+    ctx.font = "" + (height - 2) + "px " + (font == "FIXED" ? "monospace" : "sans-serif");
+    return ctx.measureText(text).width;
 }
 
 render.DrawStringCursorIndex = function DrawStringCursorIndex() {
@@ -336,6 +336,14 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     });
 }
 
+lua_callbacks["DrawStringWidth"] = function(L) {
+    var height = lua.lua_tonumber(L, 2);
+    var font = lua.lua_tostring(L, 3);
+    var text = lua.lua_tostring(L, 4);
+
+    lua.lua_pushnumber(L, render.DrawStringWidth(height, font, text));
+    ContinueThread(L, 1);
+}
 
 lua_callbacks["LoadImage"] = function(L) {
     var Callback = function Callback(L, img) {
