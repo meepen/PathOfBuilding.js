@@ -31,8 +31,7 @@ function NewImageHandle()
 	return setmetatable({}, imagemt)
 end
 function imageHandleClass:Load(fileName, ...)
-	self.file = fileName
-	self.width, self.height = coroutine.yield("LoadImage", fileName)
+	self.idx, self.width, self.height = js.LoadImage(fileName)
 end
 function imageHandleClass:Unload() end
 function imageHandleClass:SetLoadingPriority(pri) end
@@ -72,10 +71,10 @@ do
 end
 
 function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
-	js.DrawImage(imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
+	js.DrawImage(imgHandle and imgHandle.idx or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
 end
 function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
-	js.DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
+	js.DrawImageQuad(imgHandle and imgHandle.idx or nil, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
 end
 function DrawString(left, top, align, height, font, text)
 	js.DrawString(left, top, align, height, font, text)

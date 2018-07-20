@@ -22,7 +22,7 @@ canvas.style.width  = '128px';
 canvas.style.height = '72px';
 */
 
-var images = render.images = {};
+render.images = [];
 render.queue = [];
 
 render.Insert = function Insert(obj) {
@@ -109,14 +109,17 @@ render.AdvanceFrame = function AdvanceFrame() {
                     case "SetDrawColor":
                         break;
                     case "DrawImage":
-                        var img = this.images[obj.image];
-                        if (!img) {
+                        console.log( "Drawing", obj );
+
+                        if (!this.images[obj.image]) {
                             var oldFillStyle = ctx.fillStyle;
                             ctx.fillStyle ='pink';
                             ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
                             ctx.fillStyle = oldFillStyle;
                             break;
                         }
+
+                        var img = this.images[obj.image].image;
 
                         if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
                         {
@@ -375,35 +378,36 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     });
 }
 
-lua_callbacks["LoadImage"] = function(L) {
-    var Callback = function Callback(L, img) {
-        lua.lua_pushnumber(L, img.width);
-        lua.lua_pushnumber(L, img.height);
-        ContinueThread(L, 2);
-    }
+render.LoadImage = function LoadImage(name) {
+    var obj = {
+        width: 0,
+        height: 0,
+        loaded: false,
+        image: document.createElement("img"),
+    };
 
-    var name = lua.lua_tostring(L, 2);
-    var img = images[name];
+    obj.image.onload = ( () => {
+        console.log( "ONLOAD!", name );
+        obj.width = obj.image.width;
+        obj.height = obj.image.height;
+        obj.loaded = true;
+    } );
 
-    if (img) {
-        Callback(L, img);
-        return;
-    }
+    obj.image.onerror = ( () => obj.loaded = true );
 
-    var url = localStorage[name];
-    if (!url) {
-        lua.lua_pushnumber(L, 8);
-        lua.lua_pushnumber(L, 8);
-        ContinueThread(L, 2);
-        console.log("no url for " + name);
-        return;
-    }
+    obj.image.src = localStorage[name];
 
-    img = document.createElement("img");
-    img.onload = function onload() {
-        Callback(L, this);
-    }
-    img.src = url;
+    return this.images.push(obj) - 1;
+}
 
-    images[name] = img;
+render.IsImageLoaded = function IsImageLoaded(idx) {
+    return this.images[idx].loaded;
+}
+
+render.ImageWidth = function ImageWidth(idx) {
+    return this.images[idx].width;
+}
+
+render.ImageHeight = function ImageHeight(idx) {
+    return this.images[idx].height;
 }

@@ -38,10 +38,10 @@ static int SetDrawColor(lua_State *L) {
 }
 
 static int DrawImage(lua_State *L) {
-	if (lua_type(L, 1) == LUA_TSTRING) {
+	if (lua_type(L, 1) != LUA_TNIL) {
 		EM_ASM_(({
-			render.DrawImage(Pointer_stringify($0), $1, $2, $3, $4, $5, $6, $7, $8);
-		}), lua_tostring(L, 1), lua_tonumber(L, 2), lua_tonumber(L, 3), lua_tonumber(L, 4), lua_tonumber(L, 5),
+			render.DrawImage($0, $1, $2, $3, $4, $5, $6, $7, $8);
+		}), lua_tonumber(L, 1), lua_tonumber(L, 2), lua_tonumber(L, 3), lua_tonumber(L, 4), lua_tonumber(L, 5),
 			lua_tonumber(L, 6), lua_tonumber(L, 7), lua_tonumber(L, 8), lua_tonumber(L, 9));
 	}
 	else {
@@ -54,9 +54,9 @@ static int DrawImage(lua_State *L) {
 
 static int DrawImageQuad(lua_State *L) {
 	EM_ASM_(({
-		render.DrawImageQuad(Pointer_stringify($0), $1, $2, $3, $4, $5, $6, $7, $8, $9);
+		render.DrawImageQuad($0, $1, $2, $3, $4, $5, $6, $7, $8, $9);
 	}),
-		lua_tostring(L, 1),
+		lua_tonumber(L, 1),
 		lua_tonumber(L, 2),
 		lua_tonumber(L, 3),
 		lua_tonumber(L, 4),
@@ -190,6 +190,44 @@ static int GetFileData(lua_State *L) {
 	return 1;
 }
 
+static int LoadImageCont(lua_State* L, int status, lua_KContext ctx)
+{
+	int idx = (int) ctx;
+
+	int loaded = EM_ASM_INT(({
+		return render.IsImageLoaded($0) ? 1 : 0;
+	}), idx);
+
+	if ( loaded )
+	{
+		int width = EM_ASM_INT(({
+			return render.ImageWidth($0);
+		}), idx);
+
+		int height = EM_ASM_INT(({
+			return render.ImageHeight($0);
+		}), idx);
+
+		lua_pushnumber(L, idx);
+		lua_pushnumber(L, width);
+		lua_pushnumber(L, height);
+		return 3;
+	}
+
+	// Keep yielding until the image has loaded
+	lua_pushstring(L, "LoadImage!");
+	return lua_yieldk(L, 1, ctx, LoadImageCont);
+}
+
+static int LoadImage(lua_State *L) {
+	int idx = EM_ASM_INT(({
+		return render.LoadImage(Pointer_stringify($0));
+	}), lua_tostring(L, 1));
+
+	lua_pushstring(L, "LoadImage!");
+	return lua_yieldk(L, 1, (lua_KContext) idx, LoadImageCont);
+}
+
 struct reg emscripten[] = {
 	{"run", &run},
 	{"SetDrawColor", &SetDrawColor},
@@ -204,6 +242,7 @@ struct reg emscripten[] = {
 	{"GetFileData", &GetFileData},
 	{"AppendFile", &AppendFile},
 	{"SetFileData", &SetFileData},
+	{"LoadImage", &LoadImage},
 	{0, 0}
 };
 
