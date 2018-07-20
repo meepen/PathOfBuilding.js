@@ -63,63 +63,7 @@ end
 
 -- 5.1 compat
 unpack = table.unpack
-bit = {
-    band = function(val, ...)
-        for i = 2, select("#", ...) do
-            val = val & (select(i, ...))
-        end
-
-        return val
-    end,
-    bor = function(val, ...)
-        for i = 2, select("#", ...) do
-            val = val | (select(i, ...))
-        end
-
-        return val
-    end,
-    bnot = function(val)
-        return ~val
-    end
-}
-
-local _pairs = pairs
-
--- repair regular pairs behavior from lua/luajit
--- basically does ipairs first, then any other values
-local ipairs_aux = ipairs({}, nil)
-
-local function n(val)
-    local t = val.t
-    if (not val.max) then
-        local k, v = ipairs_aux(t, val.last)
-        if (k) then
-            val.done[k] = true
-            val.last = k
-            return k, t[k]
-        end
-        val.max = true
-        val.last = nil
-    end
-    local pairs_aux = _pairs(t)
-    local k, v = val.last
-    repeat
-        k, v = pairs_aux(t, k)    
-    until not k or not val.done[k]
-    if (k) then
-        val.done[k] = true
-    end
-    val.last = k
-    return k, t[k]
-end
-
-function pairs(t)
-    return n, {
-        t = t,
-        last = 0,
-        done = {}
-    }
-end
+bit = require "bit32"
 
 function loadstring(str)
     return load(str, nil, "t")
