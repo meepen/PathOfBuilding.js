@@ -64,7 +64,7 @@
                         var str = lua.lua_tostring(L, 1);
                         console.log("yielding: " + str);
                         lua.lua_pop(L, 1);
-                        return setTimeout(ContinueThread, 100, L, onFinish);
+                        return setTimeout(ContinueThread, 0, L, onFinish);
                     }
                     else if (ret != 0) {
                         console.log("error: " + lua.lua_tostring(L, -1));
