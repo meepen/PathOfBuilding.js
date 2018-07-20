@@ -41,8 +41,6 @@ function FILE:write(...)
         js.AppendFile(self.path, data)
     end
 end
-
-
 function io.open(fpath, mode)
     if (mode:find "r" and not js.GetFileData(fpath)) then
         return
