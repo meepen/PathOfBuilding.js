@@ -111,12 +111,13 @@ render.AdvanceFrame = function AdvanceFrame() {
                     case "DrawImage":
                         var img = this.images[obj.image];
                         if (!img) {
-                            //console.log("tried to draw unloaded image: " + obj.image);
+                            var oldFillStyle = ctx.fillStyle;
+                            ctx.fillStyle ='pink';
+                            ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
                             break;
                         }
 
                         ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-
                         break;
 
                     case "SetViewport":
