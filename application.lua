@@ -54,9 +54,23 @@ end
 function SetViewport(x, y, width, height)
 	js.SetViewport(x, y, width, height)
 end
-function SetDrawColor(r, g, b, a)
-	js.SetDrawColor(r, g, b, a)
+
+do
+	local _r, _g, _b, _a
+	function SetDrawColor(r, g, b, a)
+		if _r == r and _g == g and _b == b and _a == a then
+			return
+		end
+
+		_r = r
+		_g = g
+		_b = b
+		_a = a
+
+		js.SetDrawColor(r, g, b, a)
+	end
 end
+
 function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
 	js.DrawImage(imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
 end
