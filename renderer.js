@@ -107,7 +107,25 @@ render.AdvanceFrame = function AdvanceFrame() {
 
                 ctx.font = "" + ( obj.height - 2 ) + "px Arial";
                 ctx.textBaseline = "top";
-                ctx.fillText(obj.text, obj.left + offset_x, obj.top + offset_y);
+                var originalStyle = ctx.fillStyle;
+
+                var arr = this.StringToFormattedArray(obj.text);
+                var text_offset = 0;
+                console.log(obj.text);
+                for (var i = 0; i < arr.length; i++) {
+                    var part = arr[i];
+                    console.log(part);
+                    if (typeof part == "string") {
+                        ctx.fillText(part, obj.left + text_offset + offset_x, obj.top + offset_y);
+                        text_offset += ctx.measureText(part).width;
+                    }
+                    else {
+                        ctx.fillStyle = "rgba(" + part.r + "," + part.b + "," + part.b + "," + part.a + ")";
+                    }
+
+                }
+
+                ctx.fillStyle = originalStyle;
                 break;
 
             default:
@@ -117,6 +135,71 @@ render.AdvanceFrame = function AdvanceFrame() {
     }
 }
 
+var annoying_shit = [
+    { r: 0.0 * 255, g: 0.0 * 255, b: 0.0 * 255, a: 1.0 },
+    { r: 1.0 * 255, g: 0.0 * 255, b: 0.0 * 255, a: 1.0 },
+    { r: 0.0 * 255, g: 1.0 * 255, b: 0.0 * 255, a: 1.0 },
+    { r: 0.0 * 255, g: 0.0 * 255, b: 1.0 * 255, a: 1.0 },
+    { r: 1.0 * 255, g: 1.0 * 255, b: 0.0 * 255, a: 1.0 },
+    { r: 1.0 * 255, g: 0.0 * 255, b: 1.0 * 255, a: 1.0 },
+    { r: 0.0 * 255, g: 1.0 * 255, b: 1.0 * 255, a: 1.0 },
+    { r: 1.0 * 255, g: 1.0 * 255, b: 1.0 * 255, a: 1.0 },
+    { r: 0.69999999 * 255, g: 0.69999999 * 255, b: 0.69999999 * 255, a: 1.0 },
+    { r: 0.40000001 * 255, g: 0.40000001 * 255, b: 0.40000001 * 255, a: 1.0 },
+]
+
+render.ColorFromString = function ColorFromString(r, i) {
+    i = i || 0;
+    var g, b, a;
+    if (r[0 + i] != '^') {
+        return;
+    }
+    var len
+    if (r[1 + i] == 'x') {
+        b = parseInt(r.slice(6 + i, 8 + i), 16);
+        g = parseInt(r.slice(4 + i, 6 + i), 16);
+        r = parseInt(r.slice(2 + i, 4 + i), 16);
+        a = 1;
+        len = 8;
+    }
+    else {
+        var obj = annoying_shit[parseInt(r.slice(1 + i, 2 + i))];
+        obj.len = 2;
+        return obj;
+    }
+    if (!a)
+        a = 1;
+    return {
+        r: r,
+        g: g,
+        b: b,
+        a: a,
+        len: len
+    }
+}
+
+render.StringToFormattedArray = function StringToFormattedArray(str) {
+    var ret = [];
+
+    var last_find = 0;
+
+    for (var i = 0; i < str.length; i++) {
+        var col = this.ColorFromString(str, i);
+        if (col) {
+            if (last_find != i) {
+                ret.push(str.slice(last_find, i));
+            }
+            ret.push(col);
+            last_find = (i += col.len);
+        }
+    }
+
+    if (i != last_find) {
+        ret.push(str.slice(last_find, i));
+    }
+
+    return ret;
+}
 
 render.SetDrawLayer = function(layer, subLayer) {
     this.layer = layer;
@@ -135,20 +218,15 @@ render.SetViewport = function SetViewport(x, y, width, height) {
 
 render.SetDrawColor = function SetDrawColor(r, g, b, a) {
     if (typeof r === "string") {
-        if (r[0] != '^') {
-            console.log("not implemented: non caret color string");
+        var col = render.ColorFromString(r);
+        if (!r) {
+            console.log("no color from string: " + r);
             return;
         }
-        if (r[1] == 'x') {
-            b = parseInt(r.slice(-2), 16);
-            g = parseInt(r.slice(-4, -2), 16);
-            r = parseInt(r.slice(-6, -4), 16);
-            a = 1;
-        }
-        if (r.length == 2) {
-            r = g = b = parseInt(r.slice(-1).repeat(2), 16);
-            a = 1;
-        }
+        r = col.r;
+        g = col.g;
+        b = col.b;
+        a = col.a;
     }
     else {
         r *= 255;
