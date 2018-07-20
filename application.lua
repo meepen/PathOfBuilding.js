@@ -27,15 +27,18 @@ end
 
 -- Image Handles
 local imageHandleClass = { }
-imageHandleClass.__index = imageHandleClass
+local imagemt = {__index = imageHandleClass}
 function NewImageHandle()
-	return setmetatable({}, {__index = imageHandleClass})
+	return setmetatable({}, imagemt)
 end
-function imageHandleClass:Load(fileName, ...) end
+function imageHandleClass:Load(fileName, ...)
+	self.file = fileName
+	self.width, self.height = coroutine.yield("LoadImage", fileName)
+end
 function imageHandleClass:Unload() end
 function imageHandleClass:SetLoadingPriority(pri) end
 function imageHandleClass:ImageSize()
-	return 1, 1
+	return self.width, self.height
 end
 
 -- Rendering
@@ -56,7 +59,7 @@ function SetDrawColor(r, g, b, a)
 	js.global.render:SetDrawColor(r, g, b, a)
 end
 function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
-	js.global.render:DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
+	js.global.render:DrawImage(imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
 end
 function DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
 	js.global.render:DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
@@ -66,7 +69,7 @@ function DrawString(left, top, align, height, font, text)
 end
 function DrawStringWidth(height, font, text)
 	js.global.render:DrawStringWidth(height, font, text)
-	return 1
+	return 8 * text:len()
 end
 function DrawStringCursorIndex(height, font, text, cursorX, cursorY)
 	return 0

@@ -1,4 +1,4 @@
-local js = { global = { localStorage = {} } }
+local js = require "js"
 
 package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 

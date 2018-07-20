@@ -14,6 +14,7 @@ var render = window.render = {
     layer: 0,
     subLayer: 0
 };
+var images = render.images = {};
 render.queue = [];
 
 render.Insert = function Insert(obj) {
@@ -40,10 +41,10 @@ render.AdvanceFrame = function AdvanceFrame() {
     // call lua OnFrame
     // render from queue
     // TODO: not string
-    RunString(L, 'runCallback("OnFrame")');
+    RunMainThread(L, 'runCallback("OnFrame")');
 
-    var queue = render.queue;
-    render.last_queue = queue.slice()
+    var queue = this.queue;
+    this.last_queue = queue.slice()
     queue.sort(sorter)
     for (; queue.length;) {
         var obj = queue.pop();
@@ -54,6 +55,16 @@ render.AdvanceFrame = function AdvanceFrame() {
                 break;
             case "SetDrawColor":
                 ctx.fillStyle = "rgba(" + obj.r + "," + obj.b + "," + obj.b + "," + obj.a + ")";
+                break;
+            case "DrawImage":
+                var img = this.images[obj.image];
+                if (!img) {
+                    console.log("tried to draw unloaded image: " + obj.image);
+                    break;
+                }
+
+                ctx.drawImage(img, obj.left, obj.top, obj.width, obj.height);
+
                 break;
             default:
                 console.log("not implemented: " + obj.type);
@@ -116,6 +127,7 @@ render.SetDrawColor = function SetDrawColor(r, g, b, a) {
 render.DrawImage = function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom) {
     if (imgHandle) {
         this.Insert({
+            image: imgHandle,
             left: left,
             top: top,
             width: width,
@@ -153,4 +165,38 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     this.Insert({
         type: "DrawStringCursorIndex"
     });
+}
+
+
+lua_callbacks["LoadImage"] = function(L) {
+    var Callback = function Callback(L, img) {
+        lua.lua_pushinteger(L, img.width);
+        lua.lua_pushinteger(L, img.height);
+        ContinueThread(L, 2);
+    }
+
+    var name = JavascriptString(lua.lua_tostring(L, 2));
+    var img = images[name];
+
+    if (img) {
+        Callback(L, img);
+        return;
+    }
+
+    var url = localStorage[name];
+    if (!url) {
+        lua.lua_pushinteger(L, 8);
+        lua.lua_pushinteger(L, 8);
+        ContinueThread(L, 2);
+        console.log("no url for " + name);
+        return;
+    }
+
+    img = document.createElement("img");
+    img.onload = function onload() {
+        Callback(L, this);
+    }
+    img.src = url;
+
+    images[name] = img;
 }

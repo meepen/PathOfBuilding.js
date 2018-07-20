@@ -3,22 +3,24 @@
 <body>
 	<canvas id="render"></canvas>
 	<script src="fengari-web.js"></script>
-	<script src="renderer.js"></script>
 	<script>
+		window.lua_callbacks = {}
 		var enc = new TextEncoder();
 		var dec = new TextDecoder();
 
 
-		var lauxlib = fengari.lauxlib;
-		var lualib = fengari.lualib;
-		var lua = fengari.lua;
+		lauxlib = fengari.lauxlib;
+		lualib = fengari.lualib;
+		lua = fengari.lua;
 
 		LuaString = fengari.to_luastring
-		JavascriptString = lua.lua_tojsstring;
+		JavascriptString = function JavascriptString(str) {
+			return dec.decode(str);
+		}
 
 		var newline_replace = /^#[^\n]+/;
 
-		var Lmain = fengari.L;
+		var L = window.L = fengari.L;
 
 		function RunString(L, str) {
 			var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
@@ -37,10 +39,38 @@
 			return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
 		}
 
+		function ContinueThread(L, nargs) {
+			var res;
+			if (lua.LUA_YIELD == (res = lua.lua_resume(L, null, nargs || 0))) {
+				var str = JavascriptString(lua.lua_tostring(L, 1));
+				console.log("yield: " + str);
+				lua_callbacks[str](L);
+			}
+			else if (res != lua.LUA_OK) {
+				console.log("error: " + lua.lua_tostring(L, -1));
+				lua.lua_pop(L, 1);
+			}
 
-		var L = window.L = Lmain;
+		}
 
+		function RunMainThread(Lmain, str) {
+			var L = lua.lua_newthread(Lmain);
+
+			var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
+
+			if (err !== 0) {
+				err = new Error(JavascriptString(lua.lua_tostring(L, -1)));
+				lua.lua_pop(L, 1);
+
+				throw err;
+			}
+
+			ContinueThread(L);
+		}
+	</script>
+	<script src="renderer.js"></script>
+	<script>
 		console.log( "Starting Application" );
-		RunString(L, "dofile'./detours.lua' dofile'./../application.lua'");
+		RunMainThread(L, "dofile'./detours.lua' dofile'./../application.lua'");
 	</script>
 </body>
