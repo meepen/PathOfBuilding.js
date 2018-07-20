@@ -2,8 +2,9 @@
 -- This wrapper allows the program to run headless on any OS (in theory)
 -- It can be run using a standard lua interpreter, although LuaJIT is preferable
 
-local js = require "js"
+local js = require "emscripten"
 
+local yield = coroutine.yield
 
 -- Callbacks
 local callbackTable = { }
@@ -47,28 +48,28 @@ function GetScreenSize()
 	return 1280, 720
 end
 function SetClearColor(r, g, b, a)
-	js.global.render:SetClearColor(r, g, b, a)
+	yield("SetClearColor", r, g, b, a)
 end
 function SetDrawLayer(layer, subLayer)
-	js.global.render:SetDrawLayer(layer, subLayer)
+	yield("SetDrawLayer", layer, subLayer)
 end
 function SetViewport(x, y, width, height)
-	js.global.render:SetViewport(x, y, width, height)
+	yield("SetViewport", x, y, width, height)
 end
 function SetDrawColor(r, g, b, a)
-	js.global.render:SetDrawColor(r, g, b, a)
+	js.SetDrawColor(r, g, b, a)
 end
 function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
-	js.global.render:DrawImage(imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
+	yield("DrawImage", imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
 end
 function DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
-	js.global.render:DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
+	yield("DrawImageQuad", imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
 end
 function DrawString(left, top, align, height, font, text)
-	js.global.render:DrawString(left, top, align, height, font, text)
+	yield("DrawString", left, top, align, height, font, text)
 end
 function DrawStringWidth(height, font, text)
-	js.global.render:DrawStringWidth(height, font, text)
+	yield("DrawStringWidth", height, font, text)
 	return 8 * text:len()
 end
 function DrawStringCursorIndex(height, font, text, cursorX, cursorY)
@@ -86,10 +87,10 @@ function NewFileSearch() end
 
 -- General Functions
 function SetWindowTitle(title)
-	js.global.document.title = title;
+	coroutine.yield("title", title);
 end
 function GetCursorPos()
-	return js.global.canvas.x or -1, js.global.canvas.y or -1
+	return coroutine.yield("cursor");
 end
 function SetCursorPos(x, y) end
 function ShowCursor(doShow) end

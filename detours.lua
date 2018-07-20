@@ -1,19 +1,22 @@
-local js = require "js"
-
 package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 
-local _dofile = dofile
-function dofile(fpath, ...)
-    return _dofile("./PathOfBuilding/"..fpath)
+function loadfile(str)
+    return coroutine.yield('loadfile', "./PathOfBuilding/"..str)
 end
-local _loadfile = loadfile
-function loadfile(fpath, ...)
-    return _loadfile("./PathOfBuilding/"..fpath)
+function dofile(str)
+    return loadfile(str)()
 end
 
 -- create a fake io library
 io = {}
-local fs = js.global.localStorage
+local FS = {}
+function FS:__index(what)
+    return coroutine.yield("localStorage", what);
+end
+function FS:__newindex(what, val)
+    coroutine.yield("localStorageSet", what, val);
+end
+local fs = setmetatable({}, {__index = FS})
 -- don't check for updates
 fs["UpdateCheck.lua"] = ""
 -- don't run first run files
@@ -135,12 +138,22 @@ do
 end
 
 do
-    local original = require
+    function require(str, ...)
+        local loaded = package.preload[str] or package.loaded[str]
+        if (loaded) then
+            return loaded
+        end
 
-    function require( lib, ... )
-        print( "Loading", lib )
-        local ret =  original( lib, ... )
-        print( "Loaded", lib )
-        return ret
+        local str2 = str:gsub("%.","/")
+        for m in package.path:gmatch "[^;]+" do
+            local data = coroutine.yield("loadfile", m:gsub("?", str2))
+            if (data) then
+                loaded = data(...)
+                package.loaded[str] = loaded
+                return loaded
+            end
+        end
+
+        error("couldn't find "..str)
     end
 end

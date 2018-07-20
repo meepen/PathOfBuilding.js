@@ -1,76 +1,161 @@
 <!doctype html>
 
-<body>
-	<canvas id="render"></canvas>
-	<script src="fengari-web.js"></script>
-	<script>
-		window.lua_callbacks = {}
-		var enc = new TextEncoder();
-		var dec = new TextDecoder();
+<html>
+    <body>
+        <canvas id="render"></canvas>
+        <script>
+            var Module = {};
 
+            function loadScript(name) {
+                return new Promise((res, rej) => {
+                    var script = document.createElement('script');
+                    script.src = name;
+                    script.onload = res;
+                    script.onerror = script.onabort = res;
+                    document.body.appendChild(script);
+                });
+            }
 
-		lauxlib = fengari.lauxlib;
-		lualib = fengari.lualib;
-		lua = fengari.lua;
+            function finished() {
+                window.lua = {};
+                lua.luaL_newstate = function() {
+                    var L = Module._luaL_newstate();
+                    Module._luaL_openlibs(L);
+                    Module._lua_openemscripten(L);
+                    return L;
+                }
+                lua.lua_call = function(L, nargs, nrets) {
+                    Module._lua_call(L, nargs, nrets);
+                }
+                lua.luaL_loadstring = function(L, str) {
+                    var bufferSize = Module.lengthBytesUTF8(str);
+                    var bufferPtr = Module._malloc(bufferSize + 1);
+                    Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
+                    var res = Module.ccall("luaL_loadstring", "number", ["number", "number"], [L, bufferPtr]);
+                    Module._free(bufferPtr);
+                    return res;
+                }
+                lua.lua_newthread = Module.cwrap("lua_newthread", "number", ["number"]);
+                lua.lua_resume = Module.cwrap("lua_resume", "number", ["number", "number", "number"]);
+                lua.lua_tostring = Module.cwrap("lua_tostring", "string", ["number", "number"]);
+                lua.lua_pushstring = Module.cwrap("lua_pushstring", null, ["number", "string"]);
+                lua.lua_pop = Module.cwrap("lua_pop", null, ["number", "number"]);
+                lua.lua_pushnumber = Module.cwrap("lua_pushnumber", null, ["number", "number"]);
+                lua.lua_tonumberx = Module.cwrap("lua_tonumberx", "number", ["number", "number", "number"]);
+                lua.lua_tonumber = function(L, npos) {
+                    return lua.lua_tonumberx(L, npos, 0);
+                }
+                lua.lua_type = Module.cwrap("lua_type", "number", ["number", "number"]);
 
-		LuaString = fengari.to_luastring
-		JavascriptString = function JavascriptString(str) {
-			return dec.decode(str);
-		}
+                // pathofbuilding code
 
-		var newline_replace = /^#[^\n]+/;
+                window.lua_callbacks = {}
+        
+                var newline_replace = /^#[^\n]+/;
+        
+                var L = window.L = lua.luaL_newstate();
+        
+                function RunString(L, str, norun) {
+                    var err = lua.luaL_loadstring(L, str.replace(newline_replace, ""));
+        
+                    if (err !== 0) {
+                        err = new Error(lua.lua_tostring(L, -1));
+                        lua.lua_pop(L, 1);
 
-		var L = window.L = fengari.L;
+                        throw err;
+                    }
 
-		function RunString(L, str) {
-			var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
+                    if (!norun)
+                        lua.lua_call(L, 0, 0);
+                }
+        
+                function RunFile(L, fname) {
+                    return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
+                }
+        
 
-			if (err !== 0) {
-				err = new Error(JavascriptString(lua.lua_tostring(L, -1)));
-				lua.lua_pop(L, 1);
+                var callbacks = {};
+                var i = 0;
+                window.ContinueThread = function ContinueThread(L, nargs) {
+                    if (++i == 2000) {
+                        i = 0;
+                        return setTimeout(ContinueThread, 0, L, nargs);
+                    }
+                    var res;
+                    if (1 == (res = lua.lua_resume(L, 0, nargs || 0))) {
+                        var str = lua.lua_tostring(L, 1);
+                        if (!lua_callbacks[str])
+                            console.log("yield: " + str);
+                        return lua_callbacks[str](L);
+                    }
+                    else if (res != 0) {
+                        console.log("error: " + lua.lua_tostring(L, -1));
+                        lua.lua_pop(L, 1);
+                    }
+                    else if (callbacks[L]) {
+                        callbacks[L]();
+                        delete callbacks[L];
+                    }
+                    else {
+                        console.log("no callback finale for thread");
+                    }
+                }
+        
+                window.RunMainThread = function RunMainThread(Lmain, str) {
+                    return new Promise((res, rej) => {
+                        var L = lua.lua_newthread(Lmain);
+            
+                        var err = lua.luaL_loadstring(L, str.replace(newline_replace, ""));
+            
+                        if (err !== 0) {
+                            err = new Error(lua.lua_tostring(L, -1));
+                            lua.lua_pop(L, 1);
+            
+                            rej(err);
+                        }
+            
+                        callbacks[L] = res;
+            
+                        ContinueThread(L);
+                        lua.lua_pop(Lmain, 1);
+                    });
+                }
 
-				throw err;
-			}
+                var up_dir_hack = /[^\/]+\/\.\.\//g
+                lua_callbacks["loadfile"] = function dofile(L) {
+                    console.log(lua.lua_tostring(L, 2))
+                    fetch(lua.lua_tostring(L, 2).replace(up_dir_hack, "")).then(contents => {
+                        contents.text().then(data => {
+                            RunString(L, data, true);
+                            ContinueThread(L, 1);
+                        })
+                    })
+                }
+                lua_callbacks["title"] = function title(L) {
+                    document.title = lua.lua_tostring(L, 2);
+                    ContinueThread(L, 0);
+                }
 
-			lua.lua_call(L, 0, 0);
-		}
+                loadScript("renderer.js").then(() => {
+                    console.log("Starting Application");
+                    RunMainThread(L, "coroutine.yield('loadfile', './detours.lua')() dofile'../application.lua'").then(() => {
+                        var callback = function callback() {
+                            render.AdvanceFrame().then(() => {
+                                console.log("frame done");
+                                requestAnimationFrame(callback)
+                            });
+                        }
+                        requestAnimationFrame(callback);
+                    });
+                })
+            }
 
-		function RunFile(L, fname) {
-			return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
-		}
+            fetch("lua535.wasm").then(wasm => wasm.arrayBuffer()).then(wasm => {
+                Module.wasmBinary = wasm
+                Module.onRuntimeInitialized = finished
+                loadScript("lua535.js");
+            });
+        </script>
+    </body>
 
-		function ContinueThread(L, nargs) {
-			var res;
-			if (lua.LUA_YIELD == (res = lua.lua_resume(L, null, nargs || 0))) {
-				var str = JavascriptString(lua.lua_tostring(L, 1));
-				console.log("yield: " + str);
-				lua_callbacks[str](L);
-			}
-			else if (res != lua.LUA_OK) {
-				console.log("error: " + lua.lua_tostring(L, -1));
-				lua.lua_pop(L, 1);
-			}
-
-		}
-
-		function RunMainThread(Lmain, str) {
-			var L = lua.lua_newthread(Lmain);
-
-			var err = lauxlib.luaL_loadstring(L, LuaString(str.replace(newline_replace, "")));
-
-			if (err !== 0) {
-				err = new Error(JavascriptString(lua.lua_tostring(L, -1)));
-				lua.lua_pop(L, 1);
-
-				throw err;
-			}
-
-			ContinueThread(L);
-		}
-	</script>
-	<script src="renderer.js"></script>
-	<script>
-		console.log( "Starting Application" );
-		RunMainThread(L, "dofile'./detours.lua' dofile'./../application.lua'");
-	</script>
-</body>
+</html>
