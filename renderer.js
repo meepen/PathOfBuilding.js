@@ -114,6 +114,7 @@ render.AdvanceFrame = function AdvanceFrame() {
                             var oldFillStyle = ctx.fillStyle;
                             ctx.fillStyle ='pink';
                             ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                            ctx.fillStyle = oldFillStyle;
                             break;
                         }
 
