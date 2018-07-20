@@ -85,9 +85,11 @@ end
 function NewFileSearch() end
 
 -- General Functions
-function SetWindowTitle(title) end
+function SetWindowTitle(title)
+	js.global.document.title = title;
+end
 function GetCursorPos()
-	return 0, 0
+	return js.global.canvas.x or -1, js.global.canvas.y or -1
 end
 function SetCursorPos(x, y) end
 function ShowCursor(doShow) end

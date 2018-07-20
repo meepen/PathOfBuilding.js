@@ -2,6 +2,11 @@ var canvas = window.canvas = document.getElementById("render")
 canvas.width = 1280;
 canvas.height = 720;
 
+canvas.addEventListener("mousemove", function mousemove(x) {
+    this.x = x.clientX;
+    this.y = x.clientY;
+})
+
 var ctx = canvas.getContext("2d");
 ctx.save();
 
