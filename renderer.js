@@ -1,17 +1,17 @@
+var render = window.render = {
+    layer: 0,
+    subLayer: 0
+};
+
 var canvas = window.canvas = document.getElementById("render")
 canvas.width = 1280;
 canvas.height = 720;
 
 canvas.addEventListener("mousemove", function mousemove(x) {
-    this.x = x.clientX;
-    this.y = x.clientY;
+    render.cx = x.clientX;
+    render.cy = x.clientY;
 });
 
-lua_callbacks["cursor"] = function(L) {
-    lua.lua_pushnumber(L, this.x);
-    lua.lua_pushnumber(L, this.y);
-    ContinueThread(L, 2);
-}
 
 var ctx = canvas.getContext("2d");
 ctx.save();
@@ -22,10 +22,6 @@ canvas.style.width  = '128px';
 canvas.style.height = '72px';
 */
 
-var render = window.render = {
-    layer: 0,
-    subLayer: 0
-};
 var images = render.images = {};
 render.queue = [];
 
@@ -89,9 +85,7 @@ render.AdvanceFrame = function AdvanceFrame() {
         // call lua OnFrame
         // render from queue
         // TODO: not string
-        console.log("running main thread");
         RunMainThread(L, 'runCallback("OnFrame")').then(() => {
-            console.log("main thread done");
             var queue = this.queue;
             this.last_queue = queue.slice()
             queue.sort(sorter)
@@ -265,7 +259,6 @@ render.SetDrawLayer = function(layer, subLayer) {
         this.subLayer = 0;
 }
 lua_callbacks["SetDrawLayer"] = wrap("number", "number");
-
 render.SetViewport = function SetViewport(x, y, width, height) {
     this.Insert({
         x: x,
@@ -285,37 +278,38 @@ render.SetDrawColor = function SetDrawColor(r, g, b, a) {
     this.color = (r * 255) << 24 | (g * 255) << 16 | (b * 255) << 8 | (a * 255);
 }
 
-render.DrawImage = function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom) {
-    if (imgHandle) {
-        this.Insert({
-            image: imgHandle,
-            left: left,
-            top: top,
-            width: width,
-            height: height,
-            color: this.color,
-            type: "DrawImage"
-        });
-    }
-    else {
-        this.Insert({
-            left: left,
-            top: top,
-            width: width,
-            height: height,
-            color: this.color,
-            type: "DrawRect"
-        });
-    }
+render.DrawRect = function DrawRect(left, top, width, height) {
+    this.Insert({
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        color: this.color,
+        type: "DrawRect"
+    });
 }
-lua_callbacks["DrawImage"] = wrap("string", "number", "number", "number", "number");
+
+render.DrawImage = function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom) {
+    this.Insert({
+        image: imgHandle,
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        tcLeft: tcLeft, 
+        tcTop: tcTop,
+        tcRight: tcRight,
+        tcBottom: tcBottom,
+        color: this.color,
+        type: "DrawImage"
+    });
+}
 
 render.DrawImageQuad = function DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4) {
     this.Insert({
         type: "DrawImageQuad"
     });
 }
-lua_callbacks["DrawImageQuad"] = not_implemented;
 
 render.DrawString = function DrawString(left, top, align, height, font, text) {
     this.Insert({
@@ -327,21 +321,18 @@ render.DrawString = function DrawString(left, top, align, height, font, text) {
         type: "DrawString"
     });
 }
-lua_callbacks["DrawString"] = wrap("number", "number", "string", "number", "string", "string");
 
 render.DrawStringWidth = function DrawStringWidth() {
     this.Insert({
         type: "DrawStringWidth"
     });
 }
-lua_callbacks["DrawStringWidth"] = not_implemented;
 
 render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     this.Insert({
         type: "DrawStringCursorIndex"
     });
 }
-lua_callbacks["DrawStringCursorIndex"] = not_implemented;
 
 
 lua_callbacks["LoadImage"] = function(L) {

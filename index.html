@@ -141,7 +141,6 @@
                     RunMainThread(L, "coroutine.yield('loadfile', './detours.lua')() dofile'../application.lua'").then(() => {
                         var callback = function callback() {
                             render.AdvanceFrame().then(() => {
-                                console.log("frame done");
                                 requestAnimationFrame(callback)
                             });
                         }

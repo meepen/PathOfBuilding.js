@@ -4,8 +4,6 @@
 
 local js = require "emscripten"
 
-local yield = coroutine.yield
-
 -- Callbacks
 local callbackTable = { }
 local mainObject
@@ -48,28 +46,28 @@ function GetScreenSize()
 	return 1280, 720
 end
 function SetClearColor(r, g, b, a)
-	yield("SetClearColor", r, g, b, a)
+	--yield("SetClearColor", r, g, b, a)
 end
 function SetDrawLayer(layer, subLayer)
-	yield("SetDrawLayer", layer, subLayer)
+	js.SetDrawLayer(layer, subLayer)
 end
 function SetViewport(x, y, width, height)
-	yield("SetViewport", x, y, width, height)
+	js.SetViewport(x, y, width, height)
 end
 function SetDrawColor(r, g, b, a)
 	js.SetDrawColor(r, g, b, a)
 end
 function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
-	yield("DrawImage", imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
+	js.DrawImage(imgHandle and imgHandle.file or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
 end
 function DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
-	yield("DrawImageQuad", imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
+	--yield("DrawImageQuad", imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
 end
 function DrawString(left, top, align, height, font, text)
-	yield("DrawString", left, top, align, height, font, text)
+	js.DrawString(left, top, align, height, font, text)
 end
 function DrawStringWidth(height, font, text)
-	yield("DrawStringWidth", height, font, text)
+	--yield("DrawStringWidth", height, font, text)
 	return 8 * text:len()
 end
 function DrawStringCursorIndex(height, font, text, cursorX, cursorY)
@@ -87,10 +85,10 @@ function NewFileSearch() end
 
 -- General Functions
 function SetWindowTitle(title)
-	coroutine.yield("title", title);
+	js.SetTitle(title);
 end
 function GetCursorPos()
-	return coroutine.yield("cursor");
+	return js.GetCursorPos()
 end
 function SetCursorPos(x, y) end
 function ShowCursor(doShow) end
