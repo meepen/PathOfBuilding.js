@@ -415,3 +415,32 @@ render.ImageWidth = function ImageWidth(idx) {
 render.ImageHeight = function ImageHeight(idx) {
     return this.images[idx].height;
 }
+
+render.fileRequests = []
+
+var up_dir_hack = /[^\/]+\/\.\.\//g
+var newline_replace = /^#[^\n]+/;
+
+render.LoadFile = function LoadFile(name) {
+    var obj = {
+        loaded: false,
+        data: null,
+    }
+
+    fetch(name.replace(up_dir_hack, "")).then( res => {
+        res.text().then( data => {
+            obj.loaded = true;
+            obj.data = data.replace(newline_replace, "");
+        } );
+    } );
+
+    return this.fileRequests.push(obj) - 1;
+}
+
+render.IsFileLoaded = function IsFileLoaded(idx) {
+    return this.fileRequests[idx].loaded;
+}
+
+render.FileData = function FileData(idx) {
+    return this.fileRequests[idx].data;
+}

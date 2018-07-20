@@ -228,6 +228,44 @@ static int LoadImage(lua_State *L) {
 	return lua_yieldk(L, 1, (lua_KContext) idx, LoadImageCont);
 }
 
+static int LoadFileCont(lua_State* L, int status, lua_KContext ctx)
+{
+	int idx = (int) ctx;
+
+	int loaded = EM_ASM_INT(({
+		return render.IsFileLoaded($0) ? 1 : 0;
+	}), idx);
+
+	if ( loaded )
+	{
+		char *data = (char *) EM_ASM_INT(({
+			var str = render.FileData($0);
+			var bufferSize = Module.lengthBytesUTF8(str);
+			var bufferPtr = Module._malloc(bufferSize + 1);
+			Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
+			return bufferPtr;
+		}), idx);
+
+		if ( luaL_loadstring(L, data) != LUA_OK )
+			lua_error(L);
+
+		return 1;
+	}
+
+	// Keep yielding until the file has loaded
+	lua_pushstring(L, "LoadFile!");
+	return lua_yieldk(L, 1, ctx, LoadFileCont);
+}
+
+static int LoadFile(lua_State *L) {
+	int idx = EM_ASM_INT(({
+		return render.LoadFile(Pointer_stringify($0));
+	}), lua_tostring(L, 1));
+
+	lua_pushstring(L, "LoadFile!");
+	return lua_yieldk(L, 1, (lua_KContext) idx, LoadFileCont); 
+}
+
 struct reg emscripten[] = {
 	{"run", &run},
 	{"SetDrawColor", &SetDrawColor},
@@ -243,6 +281,7 @@ struct reg emscripten[] = {
 	{"AppendFile", &AppendFile},
 	{"SetFileData", &SetFileData},
 	{"LoadImage", &LoadImage},
+	{"LoadFile", &LoadFile},
 	{0, 0}
 };
 

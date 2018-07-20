@@ -3,7 +3,7 @@ local js = require "emscripten"
 package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 
 function loadfile(str)
-    return coroutine.yield('loadfile', "./PathOfBuilding/"..str)
+    return js.LoadFile("./PathOfBuilding/" .. str)
 end
 function dofile(str)
     return loadfile(str)()
@@ -83,7 +83,7 @@ do
 
         local str2 = str:gsub("%.","/")
         for m in package.path:gmatch "[^;]+" do
-            local data = coroutine.yield("loadfile", m:gsub("?", str2))
+            local data = js.LoadFile(m:gsub("?", str2))
             if (data) then
                 loaded = data(...)
                 package.loaded[str] = loaded

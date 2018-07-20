@@ -56,31 +56,8 @@
 
                 // pathofbuilding code
 
-                window.lua_callbacks = {}
-        
-                var newline_replace = /^#[^\n]+/;
-        
                 var L = window.L = lua.luaL_newstate();
         
-                function RunString(L, str, norun) {
-                    var err = lua.luaL_loadstring(L, str.replace(newline_replace, ""));
-        
-                    if (err !== 0) {
-                        err = new Error(lua.lua_tostring(L, -1));
-                        lua.lua_pop(L, 1);
-
-                        throw err;
-                    }
-
-                    if (!norun)
-                        lua.lua_call(L, 0, 0);
-                }
-        
-                function RunFile(L, fname) {
-                    return RunString(L, "require(\"" + fname.replace(/"/g, "\\\"") + "\")");
-                }
-        
-
                 var callbacks = {};
                 var i = 0;
                 window.ContinueThread = function ContinueThread(L, nargs) {
@@ -91,14 +68,9 @@
                     var res;
                     if (1 == (res = lua.lua_resume(L, 0, nargs || 0))) {
                         var str = lua.lua_tostring(L, 1);
-                        if (!lua_callbacks[str])
-                        {
-                            console.log("yielding: " + str);
-                            lua.lua_pop(L, 1);
-                            return setTimeout(ContinueThread, 0, L, 0);
-                        }
-                        else
-                        return lua_callbacks[str](L); // compat: remove mne
+                        console.log("yielding: " + str);
+                        lua.lua_pop(L, 1);
+                        return setTimeout(ContinueThread, 0, L, 0);
                     }
                     else if (res != 0) {
                         console.log("error: " + lua.lua_tostring(L, -1));
@@ -133,20 +105,9 @@
                     });
                 }
 
-                var up_dir_hack = /[^\/]+\/\.\.\//g
-                lua_callbacks["loadfile"] = function dofile(L) {
-                    console.log(lua.lua_tostring(L, 2))
-                    fetch(lua.lua_tostring(L, 2).replace(up_dir_hack, "")).then(contents => {
-                        contents.text().then(data => {
-                            RunString(L, data, true);
-                            ContinueThread(L, 1);
-                        })
-                    })
-                }
-
                 loadScript("renderer.js").then(() => {
                     console.log("Starting Application");
-                    RunMainThread(L, "coroutine.yield('loadfile', './detours.lua')() dofile'../application.lua'").then(() => {
+                    RunMainThread(L, "local js = require'emscripten'; js.LoadFile'./detours.lua'(); dofile'../application.lua'").then(() => {
                         var callback = function callback() {
                             render.AdvanceFrame().then(() => {
                                 requestAnimationFrame(callback)
