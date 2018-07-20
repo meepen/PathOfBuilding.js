@@ -118,7 +118,38 @@ render.AdvanceFrame = function AdvanceFrame() {
                             break;
                         }
 
-                        ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                        if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
+                        {
+                            var sx = img.width * obj.tcLeft;
+                            var sy = img.height * obj.tcTop;
+                            var sw = (img.width * obj.tcRight) - sx;
+                            var sh = (img.height * obj.tcBottom) - sy;
+
+                            // background hack - it's wrong
+                            if ( sw > img.width || sh > img.height )
+                            {
+                                ctx.drawImage(img, 0, 0, img.width, img.height, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                            }
+                            else
+                            {
+                                ctx.drawImage(img, sx, sy, sw, sh, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                            }
+                        }
+                        else
+                        {
+                            ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                        }
+
+                        break;
+
+                    case "DrawImageQuad":
+                        ctx.beginPath();
+                            ctx.moveTo(obj.x1, obj.y1);
+                            ctx.lineTo(obj.x2, obj.y2);
+                            ctx.lineTo(obj.x3, obj.y3);
+                            ctx.lineTo(obj.x4, obj.y4);
+                        ctx.stroke();
+
                         break;
 
                     case "SetViewport":
@@ -307,8 +338,17 @@ render.DrawImage = function DrawImage(imgHandle, left, top, width, height, tcLef
     });
 }
 
-render.DrawImageQuad = function DrawImageQuad(imageHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4) {
+render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4) {
     this.Insert({
+        image: imgHandle,
+        x1: x1, y1: y1,
+        x2: x2, y2: y2,
+        x3: x3, y3: y3,
+        x4: x4, y4: y4,
+        s1: s1, t1: t1,
+        s2: s2, t2: t2,
+        s3: s3, t3: t3,
+        s4: s4, t4: t4,
         type: "DrawImageQuad"
     });
 }

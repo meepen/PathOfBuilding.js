@@ -52,6 +52,30 @@ static int DrawImage(lua_State *L) {
 	return 0;
 }
 
+static int DrawImageQuad(lua_State *L) {
+	EM_ASM_(({
+		render.DrawImageQuad(Pointer_stringify($0), $1, $2, $3, $4, $5, $6, $7, $8, $9);
+	}),
+		lua_tostring(L, 1),
+		lua_tonumber(L, 2),
+		lua_tonumber(L, 3),
+		lua_tonumber(L, 4),
+		lua_tonumber(L, 5),
+		lua_tonumber(L, 6),
+		lua_tonumber(L, 7),
+		lua_tonumber(L, 8),
+		lua_tonumber(L, 9),
+		lua_tonumber(L, 10),
+		lua_tonumber(L, 11),
+		lua_tonumber(L, 12),
+		lua_tonumber(L, 13),
+		lua_tonumber(L, 14),
+		lua_tonumber(L, 15),
+		lua_tonumber(L, 16),
+		lua_tonumber(L, 17));
+	return 0;
+}
+
 static int DrawString(lua_State *L) {
 	EM_ASM_(({
 		render.DrawString($0, $1, Pointer_stringify($2), $3, Pointer_stringify($4), Pointer_stringify($5));
@@ -158,6 +182,7 @@ struct reg emscripten[] = {
 	{"run", &run},
 	{"SetDrawColor", &SetDrawColor},
 	{"DrawImage", &DrawImage},
+	{"DrawImageQuad", &DrawImageQuad},
 	{"DrawString", &DrawString},
 	{"SetDrawLayer", &SetDrawLayer},
 	{"SetViewport", &SetViewport},
