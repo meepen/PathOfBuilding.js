@@ -55,10 +55,9 @@
                 lua.lua_type = Module.cwrap("lua_type", "number", ["number", "number"]);
 
                 // pathofbuilding code
-
                 var L = window.L = lua.luaL_newstate();
 
-                window.ContinueThread = function ContinueThread(L, onFinish) {
+                window.ContinueMainThread = function ContinueThread(L, onFinish) {
                     var ret = lua.lua_resume(L, 0, 0);
                     if (ret == 1) {
                         var str = lua.lua_tostring(L, 1);
@@ -74,7 +73,7 @@
                     
                     onFinish();
                 }
-        
+
                 window.RunMainThread = function RunMainThread(Lmain, str) {
                     return new Promise((res, rej) => {
                         var L = lua.lua_newthread(Lmain);
@@ -88,7 +87,7 @@
                             rej(err);
                         }
 
-                        ContinueThread(L, res);
+                        ContinueMainThread(L, res);
                         lua.lua_pop(Lmain, 1);
                     });
                 }
@@ -97,9 +96,8 @@
                     console.log("Starting Application");
                     RunMainThread(L, "local js = require'emscripten'; js.LoadFile'./detours.lua'(); dofile'../application.lua'").then(() => {
                         var callback = function callback() {
-                            render.AdvanceFrame().then(() => {
-                                requestAnimationFrame(callback)
-                            });
+                            render.AdvanceFrame();
+                            requestAnimationFrame(callback)
                         }
                         requestAnimationFrame(callback);
                     });

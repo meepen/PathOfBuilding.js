@@ -42,152 +42,164 @@ function sorter(a, b) {
     return b.layer - a.layer;
 }
 
+render.RunThread = function RunThread() {
+    if (!this.luaThread) {
+        this.luaThread = lua.lua_newthread(L);
+        lua.luaL_loadstring(this.luaThread, 'repeat runCallback("OnFrame") until coroutine.yield()');
+    }
+    var res;
+    res = lua.lua_resume(this.luaThread, 0, 0);
+
+    if (res === 2) // LUA_ERRRUN
+        throw new Error("render thread did not render successfully: " + lua.lua_tostring(L, -1));
+    else if (res !== 1)
+        throw new Error("render thread ended");
+
+    if (lua.lua_type(this.luaThread, 1) === 4) // LUA_TSTRING
+        throw new Error("unsupported render thread yield: " + lua.lua_tostring(this.luaThread, 1));
+}
+
 render.AdvanceFrame = function AdvanceFrame() {
-    return new Promise(res => {
-        this.renderCount = 0;
-        this.queue = [];
+    this.renderCount = 0;
+    this.queue = [];
 
-        this.layer = 0;
-        this.subLayer = 0;
+    this.layer = 0;
+    this.subLayer = 0;
 
-        // call lua OnFrame
-        // render from queue
-        // TODO: not string
-        RunMainThread(L, 'runCallback("OnFrame")').then(() => {
-            var queue = this.queue;
-            this.last_queue = queue.slice()
-            queue.sort(sorter)
+    // call lua OnFrame
+    // render from queue
+    // TODO: not string
+    this.RunThread(L)
+    var queue = this.queue;
+    this.last_queue = queue.slice()
+    queue.sort(sorter)
 
-            var offset_x = 0, offset_y = 0;
+    var offset_x = 0, offset_y = 0;
 
-            var last_color = -1;
+    var last_color = -1;
 
-            for (; queue.length;) {
-                var obj = queue.pop();
+    for (; queue.length;) {
+        var obj = queue.pop();
 
-                if (obj.color !== undefined && last_color !== obj.color) {
-                    last_color = obj.color;
-                    ctx.fillStyle = "rgba(" + (obj.color >> 24 & 255) + "," + (obj.color >> 16 & 255 )+ "," + (obj.color >> 8 & 255) + "," + ((obj.color & 255) / 255) + ")"
+        if (obj.color !== undefined && last_color !== obj.color) {
+            last_color = obj.color;
+            ctx.fillStyle = "rgba(" + (obj.color >> 24 & 255) + "," + (obj.color >> 16 & 255 )+ "," + (obj.color >> 8 & 255) + "," + ((obj.color & 255) / 255) + ")"
+        }
+
+        switch (obj.type) {
+            case "DrawRect":
+                ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                break;
+            case "SetDrawColor":
+                break;
+            case "DrawImage":
+                var imgEntry = this.images[obj.image];
+
+                if (!imgEntry || imgEntry.error) {
+                    var oldFillStyle = ctx.fillStyle;
+                    ctx.fillStyle ='pink';
+                    ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                    ctx.fillStyle = oldFillStyle;
+                    break;
                 }
 
-                switch (obj.type) {
-                    case "DrawRect":
-                        ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                        break;
-                    case "SetDrawColor":
-                        break;
-                    case "DrawImage":
-                        var imgEntry = this.images[obj.image];
+                var img = imgEntry.image;
 
-                        if (!imgEntry || imgEntry.error) {
-                            var oldFillStyle = ctx.fillStyle;
-                            ctx.fillStyle ='pink';
-                            ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                            ctx.fillStyle = oldFillStyle;
-                            break;
-                        }
+                if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
+                {
+                    var sx = img.width * obj.tcLeft;
+                    var sy = img.height * obj.tcTop;
+                    var sw = (img.width * obj.tcRight) - sx;
+                    var sh = (img.height * obj.tcBottom) - sy;
 
-                        var img = imgEntry.image;
-
-                        if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
-                        {
-                            var sx = img.width * obj.tcLeft;
-                            var sy = img.height * obj.tcTop;
-                            var sw = (img.width * obj.tcRight) - sx;
-                            var sh = (img.height * obj.tcBottom) - sy;
-
-                            // background hack - it's wrong
-                            if ( sw > img.width || sh > img.height )
-                            {
-                                ctx.drawImage(img, 0, 0, img.width, img.height, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                            }
-                            else
-                            {
-                                ctx.drawImage(img, sx, sy, sw, sh, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                            }
-                        }
-                        else
-                        {
-                            ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                        }
-
-                        break;
-
-                    case "DrawImageQuad":
-                        ctx.beginPath();
-                            ctx.moveTo(obj.x1, obj.y1);
-                            ctx.lineTo(obj.x2, obj.y2);
-                            ctx.lineTo(obj.x3, obj.y3);
-                            ctx.lineTo(obj.x4, obj.y4);
-                        ctx.stroke();
-
-                        break;
-
-                    case "SetViewport":
-                        var textBaseline = ctx.textBaseline;
-                        var fillStyle = ctx.fillStyle;
-                        var textAlign = ctx.textAlign;
-                        var font = ctx.font;
-                        offset_x = 0;
-                        offset_y = 0;
-                        ctx.restore();
-                        ctx.save();
-                        if (obj.x !== null) {
-                            ctx.beginPath();
-                            ctx.rect(obj.x, obj.y, obj.width, obj.height);
-                            ctx.clip();
-
-                            offset_x = obj.x;
-                            offset_y = obj.y;
-
-                            ctx.textBaseline = textBaseline;
-                            ctx.fillStyle = fillStyle;
-                            ctx.textAlign = textAlign;
-                            ctx.font = font;
-                        }
-                        break;
-
-                    case "DrawString":
-                        // TODO: separate _x crap
-                        if ( obj.align == "LEFT" || obj.align == "LEFT_X" )
-                            ctx.textAlign = "left";
-                        else if ( obj.align == "RIGHT" || obj.align == "RIGHT_X" )
-                            ctx.textAlign = "right";
-                        else if ( obj.align == "CENTER" || obj.align == "CENTER_X" )
-                            ctx.textAlign = "center";
-
-                        ctx.font = "" + (obj.height - 2) + "px " + (obj.font == "FIXED" ? "monospace" : "sans-serif");
-                        ctx.textBaseline = "top";
-                        var originalStyle = ctx.fillStyle;
-
-                        var arr = this.StringToFormattedArray(obj.text);
-                        var text_offset = 0;
-                        
-                        ctx.fillStyle = "rgba(255,255,255,1)";
-                        for (var i = 0; i < arr.length; i++) {
-                            var part = arr[i];
-                            
-                            if (typeof part == "string") {
-                                ctx.fillText(part, obj.left + text_offset + offset_x, obj.top + offset_y);
-                                text_offset += ctx.measureText(part).width;
-                            }
-                            else {
-                                ctx.fillStyle = "rgba(" + (part.r * 255) + "," + (part.g * 255) + "," + (part.b * 255) + "," + (part.a) + ")";
-                            }
-                        }
-
-                        ctx.fillStyle = originalStyle;
-                        break;
-
-                    default:
-                        //console.log("not implemented: " + obj.type);
+                    // background hack - it's wrong
+                    if ( sw > img.width || sh > img.height )
+                    {
+                        ctx.drawImage(img, 0, 0, img.width, img.height, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                    }
+                    else
+                    {
+                        ctx.drawImage(img, sx, sy, sw, sh, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
+                    }
+                }
+                else
+                {
+                    ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
                 }
 
-            }
+                break;
 
-            res();
-        });
-    });
+            case "DrawImageQuad":
+                ctx.beginPath();
+                    ctx.moveTo(obj.x1, obj.y1);
+                    ctx.lineTo(obj.x2, obj.y2);
+                    ctx.lineTo(obj.x3, obj.y3);
+                    ctx.lineTo(obj.x4, obj.y4);
+                ctx.stroke();
+
+                break;
+
+            case "SetViewport":
+                var textBaseline = ctx.textBaseline;
+                var fillStyle = ctx.fillStyle;
+                var textAlign = ctx.textAlign;
+                var font = ctx.font;
+                offset_x = 0;
+                offset_y = 0;
+                ctx.restore();
+                ctx.save();
+                if (obj.x !== null) {
+                    ctx.beginPath();
+                    ctx.rect(obj.x, obj.y, obj.width, obj.height);
+                    ctx.clip();
+
+                    offset_x = obj.x;
+                    offset_y = obj.y;
+
+                    ctx.textBaseline = textBaseline;
+                    ctx.fillStyle = fillStyle;
+                    ctx.textAlign = textAlign;
+                    ctx.font = font;
+                }
+                break;
+
+            case "DrawString":
+                // TODO: separate _x crap
+                if ( obj.align == "LEFT" || obj.align == "LEFT_X" )
+                    ctx.textAlign = "left";
+                else if ( obj.align == "RIGHT" || obj.align == "RIGHT_X" )
+                    ctx.textAlign = "right";
+                else if ( obj.align == "CENTER" || obj.align == "CENTER_X" )
+                    ctx.textAlign = "center";
+
+                ctx.font = "" + (obj.height - 2) + "px " + (obj.font == "FIXED" ? "monospace" : "sans-serif");
+                ctx.textBaseline = "top";
+                var originalStyle = ctx.fillStyle;
+
+                var arr = this.StringToFormattedArray(obj.text);
+                var text_offset = 0;
+                
+                ctx.fillStyle = "rgba(255,255,255,1)";
+                for (var i = 0; i < arr.length; i++) {
+                    var part = arr[i];
+                    
+                    if (typeof part == "string") {
+                        ctx.fillText(part, obj.left + text_offset + offset_x, obj.top + offset_y);
+                        text_offset += ctx.measureText(part).width;
+                    }
+                    else {
+                        ctx.fillStyle = "rgba(" + (part.r * 255) + "," + (part.g * 255) + "," + (part.b * 255) + "," + (part.a) + ")";
+                    }
+                }
+
+                ctx.fillStyle = originalStyle;
+                break;
+
+            default:
+                //console.log("not implemented: " + obj.type);
+        }
+
+    }
 }
 
 var annoying_shit = [
