@@ -169,23 +169,16 @@ render.RunThread = function RunThread() {
 var stupidPos = gl.createBuffer();
 var stupidTexCoord = gl.createBuffer();
 render.DrawFontDebug = function DrawFontDebug() {
-    var tex = glFonts.GetDebugTexture();
+    var gl = this.gl;
     var shaderInfo = this.basicTexture;
+    var res = glFonts.BuildBuffers( "FIXED", 24, "Hello, World!", 0, 0 );
 
-    var x = 0;
-    var y = 0;
-    var w = 128;
-    var h = 128;
+    gl.bindTexture(gl.TEXTURE_2D, res.Texture);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
     gl.bufferData(
         gl.ARRAY_BUFFER,
-        new Float32Array([
-            x, y,
-            x + w, y,
-            x, y + h,
-            x + w, y + h,
-        ]),
+        res.Positions,
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
@@ -201,12 +194,7 @@ render.DrawFontDebug = function DrawFontDebug() {
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
         gl.ARRAY_BUFFER,
-        new Float32Array([
-            0, 0,
-            1, 0,
-            0, 1,
-            1, 1,
-        ]),
+        res.TexCoords,
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
@@ -224,7 +212,7 @@ render.DrawFontDebug = function DrawFontDebug() {
     gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.drawArrays(gl.TRIANGLES, 0, res.Positions.length / 2);
 
     // :/
     gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
