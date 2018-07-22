@@ -17,7 +17,6 @@ var ctx2d = document.createElement("canvas").getContext("2d");
 var gl = render.gl = canvas.getContext("webgl", { alpha: false });
 
 gl.enable(gl.BLEND);
-gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 render.Initialize = function Initialize() {
     return glFonts.Load( gl );
@@ -311,7 +310,7 @@ render.AdvanceFrame = function AdvanceFrame() {
 
         switch (obj.type) {
             case "DrawRect":
-                this.RealDrawRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height, last_color);
+                //this.RealDrawRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height, last_color);
                 break;
             /*case "SetDrawColor":
                 break;
