@@ -17,6 +17,7 @@ var ctx2d = document.createElement("canvas").getContext("2d");
 var gl = render.gl = canvas.getContext("webgl", { alpha: false });
 
 gl.enable(gl.BLEND);
+gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 render.Initialize = function Initialize() {
     return glFonts.Load( gl );
