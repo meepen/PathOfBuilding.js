@@ -161,19 +161,7 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
 }
 
 render.RealDrawString = function RealDrawString(text, x, y) {
-    var gl = this.gl;
 
-    for (var i = 0; i < text.length; i++) {
-        var tex = ctexture.GetTexture(gl, text, i);
-
-        gl.bindTexture(gl.TEXTURE_2D, obj.tex);
-
-        this.DrawRect(x, y, tex.w, tex.h);
-
-        x += tex.w;
-    }
-
-    gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
 render.AdvanceFrame = function AdvanceFrame() {
