@@ -14,7 +14,14 @@ canvas.addEventListener("mousemove", function mousemove(x) {
 });
 
 var ctx2d = document.createElement("canvas").getContext("2d");
-var gl = render.gl = canvas.getContext("webgl");
+var gl = render.gl = canvas.getContext("webgl", { alpha: false });
+
+gl.enable(gl.BLEND);
+gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+render.Initialize = function Initialize() {
+    return glFonts.Load( gl );
+}
 
 render.InitShader = function InitShader(vsSource, fsSource) {
     var gl = this.gl;
@@ -70,6 +77,30 @@ var basic = render.shaders["basic"] = render.InitShader(
     `
 );
 
+var basicTexture = render.shaders["basicTexture"] = render.InitShader(
+    `
+        attribute vec2 position;
+        attribute vec2 vTexCoord;
+        uniform vec2 scale;
+
+        varying vec2 fTexCoord;
+
+        void main() {
+            fTexCoord = vTexCoord;
+            gl_Position = vec4((position * scale - vec2(1.0, 1.0)) * vec2(1, -1), 1.0, 1.0);
+        }
+    `,
+    `
+        precision mediump float;
+        varying vec2 fTexCoord;
+        uniform sampler2D texSampler;
+        void main() {
+            gl_FragColor = texture2D(texSampler, fTexCoord);
+            gl_FragColor.rgb *= gl_FragColor.a;
+        }
+    `
+);
+
 render.basic = {
     program: basic,
     attribLocations: {
@@ -81,6 +112,17 @@ render.basic = {
     },
 };
 
+render.basicTexture = {
+    program: basicTexture,
+    attribLocations: {
+        position: gl.getAttribLocation(basicTexture, "position"),
+        vTexCoord: gl.getAttribLocation(basicTexture, "vTexCoord"),
+    },
+    uniformLocations: {
+        scale: gl.getUniformLocation(basicTexture, "scale"),
+        texSampler: gl.getUniformLocation(basicTexture, "texSampler"),
+    },
+};
 
 /*
 // we can rescale easily like this:
@@ -125,6 +167,71 @@ render.RunThread = function RunThread() {
         throw new Error("unsupported render thread yield: " + lua.lua_tostring(this.luaThread, 1));
 }
 
+var stupidPos = gl.createBuffer();
+var stupidTexCoord = gl.createBuffer();
+render.DrawFontDebug = function DrawFontDebug() {
+    var tex = glFonts.GetDebugTexture();
+    var shaderInfo = this.basicTexture;
+
+    var x = 0;
+    var y = 0;
+    var w = 128;
+    var h = 128;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            x, y,
+            x + w, y,
+            x, y + h,
+            x + w, y + h,
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.position,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 1,
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vTexCoord,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+
+    gl.useProgram(shaderInfo.program);
+
+    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // :/
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+}
+
 var rect = gl.createBuffer();
 render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     var gl = this.gl;
@@ -158,6 +265,10 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     gl.uniform4fv(shaderInfo.uniformLocations.color, col);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // :/
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.color);
 }
 
 render.RealDrawString = function RealDrawString(text, x, y) {
@@ -310,6 +421,8 @@ render.AdvanceFrame = function AdvanceFrame() {
             default:
                 //console.log("not implemented: " + obj.type);
         }
+
+        this.DrawFontDebug();
 
     }
 }
