@@ -171,7 +171,7 @@ var stupidTexCoord = gl.createBuffer();
 render.DrawFontDebug = function DrawFontDebug() {
     var gl = this.gl;
     var shaderInfo = this.basicTexture;
-    var res = glFonts.BuildBuffers( "FIXED", 24, "Hello, World!", 0, 0 );
+    var res = glFonts.BuildBuffers( "FIXED", 32, "Hello, World!", 0, 0 );
 
     gl.bindTexture(gl.TEXTURE_2D, res.Texture);
 
@@ -258,8 +258,55 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     gl.disableVertexAttribArray(shaderInfo.attribLocations.color);
 }
 
-render.RealDrawString = function RealDrawString(text, x, y) {
+render.RealDrawString = function RealDrawString(x, y, fontName, height, text) {
+    var gl = this.gl;
+    var shaderInfo = this.basicTexture;
+    var res = glFonts.BuildBuffers( fontName, height, text, x, y );
 
+    gl.bindTexture(gl.TEXTURE_2D, res.Texture);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        res.Positions,
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.position,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        res.TexCoords,
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vTexCoord,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+
+    gl.useProgram(shaderInfo.program);
+
+    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, res.Positions.length / 2);
+
+    // :/
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
 render.AdvanceFrame = function AdvanceFrame() {
@@ -298,8 +345,13 @@ render.AdvanceFrame = function AdvanceFrame() {
 
         switch (obj.type) {
             case "DrawRect":
-                //this.RealDrawRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height, last_color);
+                this.RealDrawRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height, last_color);
                 break;
+
+            case "DrawString":
+                this.RealDrawString(obj.left + offset_x, obj.top + offset_y, obj.font, obj.height, obj.text);
+                break;
+
             /*case "SetDrawColor":
                 break;
             case "DrawImage":
@@ -408,9 +460,6 @@ render.AdvanceFrame = function AdvanceFrame() {
             default:
                 //console.log("not implemented: " + obj.type);
         }
-
-        this.DrawFontDebug();
-
     }
 }
 
