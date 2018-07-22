@@ -258,10 +258,38 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     gl.disableVertexAttribArray(shaderInfo.attribLocations.color);
 }
 
-render.RealDrawString = function RealDrawString(x, y, fontName, height, text) {
+render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
+    var width = glFonts.GetTextWidth(fontName, height, text);
+
+    switch (align)
+    {
+        case "CENTER":
+            x -= width / 2;
+            y -= height / 2;
+            break;
+
+        case "CENTER_X":
+            x -= width / 2;
+            break;
+
+        case "RIGHT":
+            x -= width;
+            break;
+
+        case "LEFT":
+            // i have absolutely no idea what to do here lmao
+            break;
+
+
+        // TODO: What are the other options
+    }
+
     var gl = this.gl;
     var shaderInfo = this.basicTexture;
     var res = glFonts.BuildBuffers( fontName, height, text, x, y );
+
+    if ( res.Positions.length == 0 )
+        return;
 
     gl.bindTexture(gl.TEXTURE_2D, res.Texture);
 
@@ -349,7 +377,17 @@ render.AdvanceFrame = function AdvanceFrame() {
                 break;
 
             case "DrawString":
-                this.RealDrawString(obj.left + offset_x, obj.top + offset_y, obj.font, obj.height, obj.text);
+                this.RealDrawString(obj.left + offset_x, obj.top + offset_y, obj.font, obj.height, obj.text, obj.align);
+                break;
+
+            case "SetViewport":
+                offset_x = 0;
+                offset_y = 0;
+
+                if (obj.x !== null) {
+                    offset_x = obj.x;
+                    offset_y = obj.y;
+                }
                 break;
 
             /*case "SetDrawColor":
@@ -609,8 +647,7 @@ render.DrawString = function DrawString(left, top, align, height, font, text) {
 }
 
 render.DrawStringWidth = function DrawStringWidth(height, font, text) {
-    ctx2d.font = "" + (height - 2) + "px " + (font == "FIXED" ? "monospace" : "sans-serif");
-    return ctx2d.measureText(text).width;
+    return glFonts.GetTextWidth(font, height, text);
 }
 
 render.DrawStringCursorIndex = function DrawStringCursorIndex() {
