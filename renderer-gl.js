@@ -81,22 +81,27 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
     `
         attribute vec2 position;
         attribute vec2 vTexCoord;
+        attribute vec4 vColor;
         uniform vec2 scale;
 
         varying vec2 fTexCoord;
+        varying vec4 fColor;
 
         void main() {
             fTexCoord = vTexCoord;
+            fColor = vColor;
             gl_Position = vec4((position * scale - vec2(1.0, 1.0)) * vec2(1, -1), 1.0, 1.0);
         }
     `,
     `
         precision mediump float;
         varying vec2 fTexCoord;
+        varying vec4 fColor;
         uniform sampler2D texSampler;
         void main() {
             gl_FragColor = texture2D(texSampler, fTexCoord);
             gl_FragColor.rgb *= gl_FragColor.a;
+            gl_FragColor *= fColor;
         }
     `
 );
@@ -117,6 +122,7 @@ render.basicTexture = {
     attribLocations: {
         position: gl.getAttribLocation(basicTexture, "position"),
         vTexCoord: gl.getAttribLocation(basicTexture, "vTexCoord"),
+        vColor: gl.getAttribLocation(basicTexture, "vColor"),
     },
     uniformLocations: {
         scale: gl.getUniformLocation(basicTexture, "scale"),
@@ -167,59 +173,6 @@ render.RunThread = function RunThread() {
         throw new Error("unsupported render thread yield: " + lua.lua_tostring(this.luaThread, 1));
 }
 
-var stupidPos = gl.createBuffer();
-var stupidTexCoord = gl.createBuffer();
-render.DrawFontDebug = function DrawFontDebug() {
-    var gl = this.gl;
-    var shaderInfo = this.basicTexture;
-    var res = glFonts.BuildBuffers( "FIXED", 32, "Hello, World!", 0, 0 );
-
-    gl.bindTexture(gl.TEXTURE_2D, res.Texture);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        res.Positions,
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.attribLocations.position,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        res.TexCoords,
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vTexCoord,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
-
-    gl.useProgram(shaderInfo.program);
-
-    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
-    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
-
-    gl.drawArrays(gl.TRIANGLES, 0, res.Positions.length / 2);
-
-    // :/
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
-}
-
 var rect = gl.createBuffer();
 render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     var gl = this.gl;
@@ -259,6 +212,9 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     gl.disableVertexAttribArray(shaderInfo.attribLocations.color);
 }
 
+var stupidPos = gl.createBuffer();
+var stupidTexCoord = gl.createBuffer();
+var stupidColor = gl.createBuffer();
 render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
     var width = glFonts.GetTextWidth(fontName, height, text);
 
@@ -287,7 +243,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
 
     var gl = this.gl;
     var shaderInfo = this.basicTexture;
-    var res = glFonts.BuildBuffers( fontName, height, text, x, y );
+    var res = glFonts.BuildBuffers(fontName, height, text, x, y);
 
     if ( res.Positions.length == 0 )
         return;
@@ -325,6 +281,22 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         0
     );
     gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        res.Colors,
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vColor,
+        4,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
 
     gl.useProgram(shaderInfo.program);
 

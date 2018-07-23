@@ -2595,8 +2595,10 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 
 	var positions = new Float32Array(text.length * 12);
 	var texCoords = new Float32Array(text.length * 12);
+	var colors = new Float32Array(text.length * 24);
 
 	var baseX = baseX;
+	var currentColor = [1, 1, 1, 1];
 
 	var parts = StringToFormattedArray(text);
 
@@ -2605,7 +2607,10 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 		var part = parts[i];
 
 		if (typeof part != "string")
+		{
+			currentColor = [part.r, part.g, part.b, part.a];
 			continue;
+		}
 
 		for (var j = 0; j < part.length; j++)
 		{
@@ -2640,18 +2645,21 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 			positions[j * 12 + 1] = pyTL;
 			texCoords[j * 12 + 0] = txTL;
 			texCoords[j * 12 + 1] = tyTL;
+			colors.set(currentColor, j * 24 + 0);
 
 			// BL
 			positions[j * 12 + 2] = pxBL;
 			positions[j * 12 + 3] = pyBL;
 			texCoords[j * 12 + 2] = txBL;
 			texCoords[j * 12 + 3] = tyBL;
+			colors.set(currentColor, j * 24 + 4);
 
 			// TR
 			positions[j * 12 + 4] = pxTR;
 			positions[j * 12 + 5] = pyTR;
 			texCoords[j * 12 + 4] = txTR;
 			texCoords[j * 12 + 5] = tyTR;
+			colors.set(currentColor, j * 24 + 8);
 
 			/// Triangle #2
 			// TR
@@ -2659,24 +2667,27 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 			positions[j * 12 + 7] = pyTR;
 			texCoords[j * 12 + 6] = txTR;
 			texCoords[j * 12 + 7] = tyTR;
+			colors.set(currentColor, j * 24 + 12);
 
 			// BL
 			positions[j * 12 + 8] = pxBL;
 			positions[j * 12 + 9] = pyBL;
 			texCoords[j * 12 + 8] = txBL;
 			texCoords[j * 12 + 9] = tyBL;
+			colors.set(currentColor, j * 24 + 16);
 
 			// BR
 			positions[j * 12 + 10] = pxBR;
 			positions[j * 12 + 11] = pyBR;
 			texCoords[j * 12 + 10] = txBR;
 			texCoords[j * 12 + 11] = tyBR;
+			colors.set(currentColor, j * 24 + 20);
 
 			baseX += glyph[2] + glyph[4];
 		}
 	}
 
-	return { Texture: FONTS[fontName][height].Texture, Positions: positions, TexCoords: texCoords };
+	return { Texture: FONTS[fontName][height].Texture, Positions: positions, TexCoords: texCoords, Colors: colors };
 }
 
 glFonts.GetDebugTexture = function DebugDraw(gl)
