@@ -232,6 +232,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         case "RIGHT":
             x -= width;
             y -= height / 2;
+            break;
 
         case "RIGHT_X":
             x -= width;
