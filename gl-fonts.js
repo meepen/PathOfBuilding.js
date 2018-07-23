@@ -2603,14 +2603,17 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 	var font = FONTS[fontName][height];
 	var glyphs = getGlyphs(fontName, height);
 
+	// We might not use the entire arrays depending on our color parts
 	var positions = new Float32Array(text.length * 12);
 	var texCoords = new Float32Array(text.length * 12);
 	var colors = new Float32Array(text.length * 24);
+	var vertCount = 0;
 
 	var baseX = baseX;
 	var currentColor = [1, 1, 1, 1];
 
 	var parts = StringToFormattedArray(text);
+	var k = 0;
 
 	for (var i = 0; i < parts.length; i++)
 	{
@@ -2622,8 +2625,9 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 			continue;
 		}
 
-		for (var j = 0; j < part.length; j++)
+		for (j = 0; j < part.length; j++)
 		{
+			var l = k + j;
 			var glyph = glyphs[part.charCodeAt(j)];
 
 			if (!glyph)
@@ -2651,53 +2655,57 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 
 			/// Triangle #1
 			// TL
-			positions[j * 12 + 0] = pxTL;
-			positions[j * 12 + 1] = pyTL;
-			texCoords[j * 12 + 0] = txTL;
-			texCoords[j * 12 + 1] = tyTL;
-			colors.set(currentColor, j * 24 + 0);
+			positions[l * 12 + 0] = pxTL;
+			positions[l * 12 + 1] = pyTL;
+			texCoords[l * 12 + 0] = txTL;
+			texCoords[l * 12 + 1] = tyTL;
+			colors.set(currentColor, l * 24 + 0);
 
 			// BL
-			positions[j * 12 + 2] = pxBL;
-			positions[j * 12 + 3] = pyBL;
-			texCoords[j * 12 + 2] = txBL;
-			texCoords[j * 12 + 3] = tyBL;
-			colors.set(currentColor, j * 24 + 4);
+			positions[l * 12 + 2] = pxBL;
+			positions[l * 12 + 3] = pyBL;
+			texCoords[l * 12 + 2] = txBL;
+			texCoords[l * 12 + 3] = tyBL;
+			colors.set(currentColor, l * 24 + 4);
 
 			// TR
-			positions[j * 12 + 4] = pxTR;
-			positions[j * 12 + 5] = pyTR;
-			texCoords[j * 12 + 4] = txTR;
-			texCoords[j * 12 + 5] = tyTR;
-			colors.set(currentColor, j * 24 + 8);
+			positions[l * 12 + 4] = pxTR;
+			positions[l * 12 + 5] = pyTR;
+			texCoords[l * 12 + 4] = txTR;
+			texCoords[l * 12 + 5] = tyTR;
+			colors.set(currentColor, l * 24 + 8);
 
 			/// Triangle #2
 			// TR
-			positions[j * 12 + 6] = pxTR;
-			positions[j * 12 + 7] = pyTR;
-			texCoords[j * 12 + 6] = txTR;
-			texCoords[j * 12 + 7] = tyTR;
-			colors.set(currentColor, j * 24 + 12);
+			positions[l * 12 + 6] = pxTR;
+			positions[l * 12 + 7] = pyTR;
+			texCoords[l * 12 + 6] = txTR;
+			texCoords[l * 12 + 7] = tyTR;
+			colors.set(currentColor, l * 24 + 12);
 
 			// BL
-			positions[j * 12 + 8] = pxBL;
-			positions[j * 12 + 9] = pyBL;
-			texCoords[j * 12 + 8] = txBL;
-			texCoords[j * 12 + 9] = tyBL;
-			colors.set(currentColor, j * 24 + 16);
+			positions[l * 12 + 8] = pxBL;
+			positions[l * 12 + 9] = pyBL;
+			texCoords[l * 12 + 8] = txBL;
+			texCoords[l * 12 + 9] = tyBL;
+			colors.set(currentColor, l * 24 + 16);
 
 			// BR
-			positions[j * 12 + 10] = pxBR;
-			positions[j * 12 + 11] = pyBR;
-			texCoords[j * 12 + 10] = txBR;
-			texCoords[j * 12 + 11] = tyBR;
-			colors.set(currentColor, j * 24 + 20);
+			positions[l * 12 + 10] = pxBR;
+			positions[l * 12 + 11] = pyBR;
+			texCoords[l * 12 + 10] = txBR;
+			texCoords[l * 12 + 11] = tyBR;
+			colors.set(currentColor, l * 24 + 20);
 
 			baseX += glyph[2] + glyph[4];
+
+			vertCount += 6;
 		}
+
+		k += j;
 	}
 
-	return { Texture: FONTS[fontName][height].Texture, Positions: positions, TexCoords: texCoords, Colors: colors };
+	return { Texture: FONTS[fontName][height].Texture, Positions: positions, TexCoords: texCoords, Colors: colors, VertCount: vertCount };
 }
 
 glFonts.GetDebugTexture = function DebugDraw(gl)
