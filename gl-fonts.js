@@ -2566,14 +2566,24 @@ glFonts.GetTextWidth = function GetTextWidth(fontName, height, text)
 	var glyphs = getGlyphs(fontName, height);
 	var width = 0;
 
-	for (var i = 0; i < text.length; i++)
+	var parts = StringToFormattedArray(text);
+
+	for (var i = 0; i < parts.length; i++)
 	{
-		var glyph = glyphs[text.charCodeAt(i)];
+		var part = parts[i];
 
-		if (!glyph)
-			glyph = glyphs[0];
+		if (typeof part != "string")
+			continue;
 
-		width += glyph[2] + glyph[3] + glyph[4]; // TODO: Do we need to cut off glyph[4] for the last character?
+		for (var j = 0; j < part.length; j++)
+		{
+			var glyph = glyphs[part.charCodeAt(j)];
+
+			if (!glyph)
+				glyph = glyphs[0];
+
+			width += glyph[2] + glyph[3] + glyph[4]; // TODO: Do we need to cut off glyph[4] for the last character?
+		}
 	}
 
 	return width;
