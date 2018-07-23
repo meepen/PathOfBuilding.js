@@ -231,10 +231,10 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
 
         case "RIGHT":
             x -= width;
-            break;
+            y -= height / 2;
 
-        case "LEFT":
-            // i have absolutely no idea what to do here lmao
+        case "RIGHT_X":
+            x -= width;
             break;
 
 
