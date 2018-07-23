@@ -238,8 +238,12 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
             x -= width;
             break;
 
+        case "LEFT":
+            break;
 
-        // TODO: What are the other options
+        default:
+            console.log("Unknown Alignment:", align);
+            break;
     }
 
     var gl = this.gl;
