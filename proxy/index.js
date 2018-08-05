@@ -7,7 +7,8 @@ const cfg = require("./config");
 http.createServer((req, res) => {
     var query;
     try {
-        query = url.parse(req.url, true).query;
+        var parsed = url.parse(req.url, true);
+        query = parsed.query;
     }
     catch (e) {
         res.statusCode = 503;
@@ -24,6 +25,7 @@ http.createServer((req, res) => {
         url: query.url,
         responseType: "stream"
     }).then(get => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
         get.data.pipe(res);
     }).catch(e => {
         console.log(e);
