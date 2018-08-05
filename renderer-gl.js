@@ -250,7 +250,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     var shaderInfo = this.basicTexture;
     var res = glFonts.BuildBuffers(fontName, height, text, x, y);
 
-    if ( res.Positions.length == 0 )
+    if ( res.VertCount == 0 )
         return;
 
     gl.bindTexture(gl.TEXTURE_2D, res.Texture);
@@ -308,7 +308,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
-    gl.drawArrays(gl.TRIANGLES, 0, res.Positions.length / 2);
+    gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
 
     // :/
     gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
@@ -600,29 +600,6 @@ render.ColorFromString = function ColorFromString(r, i) {
         a: a,
         len: len
     }
-}
-
-render.StringToFormattedArray = function StringToFormattedArray(str) {
-    var ret = [];
-
-    var last_find = 0;
-
-    for (var i = 0; i < str.length; i++) {
-        var col = this.ColorFromString(str, i);
-        if (col) {
-            if (last_find != i) {
-                ret.push(str.slice(last_find, i));
-            }
-            ret.push(col);
-            last_find = (i += col.len);
-        }
-    }
-
-    if (i != last_find) {
-        ret.push(str.slice(last_find, i));
-    }
-
-    return ret;
 }
 
 render.SetDrawLayer = function(layer, subLayer) {
