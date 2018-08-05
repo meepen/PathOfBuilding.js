@@ -316,6 +316,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
 }
 
 render.AdvanceFrame = function AdvanceFrame() {
+    var gl = this.gl
     this.renderCount = 0;
     this.queue = [];
 
@@ -406,15 +407,96 @@ render.AdvanceFrame = function AdvanceFrame() {
                 }
 
                 break;
+            */
             case "DrawImageQuad":
-                ctx.beginPath();
-                    ctx.moveTo(obj.x1, obj.y1);
-                    ctx.lineTo(obj.x2, obj.y2);
-                    ctx.lineTo(obj.x3, obj.y3);
-                    ctx.lineTo(obj.x4, obj.y4);
-                ctx.stroke();
+
+                var imgEntry = this.images[obj.image];
+
+                if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
+                    break;
+                }
+
+                var shaderInfo = this.basicTexture;
+
+                gl.bindTexture(gl.TEXTURE_2D, imgEntry.texture);
+            
+                gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
+                gl.bufferData(
+                    gl.ARRAY_BUFFER,
+                    new Float32Array([
+                        obj.x1, obj.y1,
+                        obj.x2, obj.y2,
+                        obj.x3, obj.y3,
+                        obj.x4, obj.y4
+                    ]),
+                    gl.STATIC_DRAW
+                );
+                gl.vertexAttribPointer(
+                    shaderInfo.attribLocations.position,
+                    2,
+                    gl.FLOAT,
+                    false,
+                    0,
+                    0
+                );
+                gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+            
+                gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+                gl.bufferData(
+                    gl.ARRAY_BUFFER,
+                    new Float32Array([
+                        obj.s1, obj.t1,
+                        obj.s2, obj.t2,
+                        obj.s3, obj.t3,
+                        obj.s4, obj.t4
+                    ]),
+                    gl.STATIC_DRAW
+                );
+                gl.vertexAttribPointer(
+                    shaderInfo.attribLocations.vTexCoord,
+                    2,
+                    gl.FLOAT,
+                    false,
+                    0,
+                    0
+                );
+                gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+            
+                gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
+                gl.bufferData(
+                    gl.ARRAY_BUFFER,
+                    new Float32Array([
+                        1, 1, 1, 1,
+                        1, 1, 1, 1,
+                        1, 1, 1, 1,
+                        1, 1, 1, 1
+                    ]),
+                    gl.STATIC_DRAW
+                );
+                gl.vertexAttribPointer(
+                    shaderInfo.attribLocations.vColor,
+                    4,
+                    gl.FLOAT,
+                    false,
+                    0,
+                    0
+                );
+                gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
+            
+                gl.useProgram(shaderInfo.program);
+            
+                gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+                gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+            
+                gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+            
+                // :/
+                gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+                gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 
                 break;
+
+            /*
 
             case "SetViewport":
                 var textBaseline = ctx.textBaseline;
@@ -640,22 +722,44 @@ render.LoadImage = function LoadImage(name) {
         height: 0,
         loaded: false,
         error: false,
-        image: document.createElement("img"),
+        image: new Image,
+    };
+    var img = obj.image;
+
+    obj.texture = gl.createTexture();
+
+    img.crossOrigin = "anonymous";
+
+    img.onload = () => {
+        console.log( "ONLOAD!", name );
+        gl.bindTexture(gl.TEXTURE_2D, obj.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+        // Might not be power-of-2. We don't care for now, but this might hurt us
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+        obj.width = img.width;
+        obj.height = img.height;
+
+        obj.loaded = true;
     };
 
-    obj.image.onload = ( () => {
-        console.log( "ONLOAD!", name );
-        obj.width = obj.image.width;
-        obj.height = obj.image.height;
-        obj.loaded = true;
-    } );
+    img.onerror = () => {
+        gl.bindTexture(gl.TEXTURE_2D, obj.texture);
 
-    obj.image.onerror = ( () => {
+        var pinkRGBA = new Uint8Array([255, 0, 220, 255]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pinkRGBA);
+
+        obj.width = 1;
+        obj.height = 1;
+        
         obj.loaded = true;
         obj.error = true;
-    } );
+    };
 
-    obj.image.src = localStorage[name];
+    obj.image.src = `http://144.202.109.121:9000/?url=${localStorage[name]}`;
 
     return this.images.push(obj) - 1;
 }

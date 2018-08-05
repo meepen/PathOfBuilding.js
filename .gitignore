@@ -2,3 +2,5 @@
 *.a
 ./lua-5.3.5/lua
 ./lua-5.3.5/luac
+package-lock.json
+node_modules
