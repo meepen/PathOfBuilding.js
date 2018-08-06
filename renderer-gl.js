@@ -442,17 +442,14 @@ render.AdvanceFrame = function AdvanceFrame() {
                 gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
             
                 gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
-
-                var texcoords = Float32Array.from([
-                    obj.s1, obj.t1,
-                    obj.s2, obj.t2,
-                    obj.s3, obj.t3,
-                    obj.s4, obj.t4
-                ]);
-                console.log(texcoords);
                 gl.bufferData(
                     gl.ARRAY_BUFFER,
-                    texcoords,
+                    Float32Array.from([
+                        obj.s1, obj.t1,
+                        obj.s2, obj.t2,
+                        obj.s3, obj.t3,
+                        obj.s4, obj.t4
+                    ]),
                     gl.STATIC_DRAW
                 );
                 gl.vertexAttribPointer(
