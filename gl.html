@@ -55,6 +55,9 @@
                         return lua.lua_tonumberx(L, npos, 0);
                     }
                     lua.lua_type = Module.cwrap("lua_type", "number", ["number", "number"]);
+                    lua.lua_createtable = Module.cwrap("lua_createtable", null, ["number", "number", "number"]);
+                    lua.lua_setfield = Module.cwrap("lua_setfield", null, ["number", "number", "string"]);
+                    lua.lua_rawseti = Module.cwrap("lua_rawseti", null, ["number", "number", "number"]);
     
                     // pathofbuilding code
                     var L = window.L = lua.luaL_newstate();

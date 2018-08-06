@@ -2,6 +2,7 @@ var render = window.render = {
     layer: 0,
     subLayer: 0,
     shaders: {},
+    events: []
 };
 
 var canvas = window.canvas = render.canvas = document.getElementById("gl");
@@ -12,6 +13,53 @@ canvas.addEventListener("mousemove", function mousemove(x) {
     render.cx = x.clientX;
     render.cy = x.clientY;
 });
+
+var keyStateTranslations = {
+    "Control": "CTRL",
+    "ArrowRight": "RIGHT",
+    "ArrowUp": "UP",
+    "ArrowLeft": "LEFT",
+    "ArrowRight": "RIGHT",
+    "Shift": "SHIFT",
+    "Alt": "ALT"
+}
+var keyTranslations = {};
+render.keyStates = {};
+
+canvas.addEventListener("keydown", function keydown(x) {
+    if (keyStateTranslations[x.key]) {
+        render.keyStates[keyStateTranslations[x.key]] = true;
+    }
+    else if (keyTranslations[x.key]) {
+
+    }
+});
+
+canvas.addEventListener("keyup", function keyup(x) {
+    if (keyStateTranslations[x.key]) {
+        render.keyStates[keyStateTranslations[x.key]] = false;
+    }
+    else if (keyTranslations[x.key]) {
+        
+    }
+});
+
+window.addEventListener("wheel", function onwheel(x) {
+    if (x.deltaY === 0)
+        return;
+    
+    // Unfortunately, wheel event has deltaY at a multiplier dependent on browser, so we can't scroll properly
+    render.events.push({
+        type: "OnKeyUp",
+        arg: "WHEEL" + (x.deltaY > 0 ? "DOWN" : "UP")
+    });
+});
+
+render.IsKeyDown = function IsKeyDown(key) {
+    return !!render.keyStates[key];
+}
+
+
 
 var ctx2d = document.createElement("canvas").getContext("2d");
 var gl = render.gl = canvas.getContext("webgl", { alpha: false });
@@ -157,15 +205,42 @@ function sorter(a, b) {
 }
 
 render.RunThread = function RunThread() {
+
     if (!this.luaThread) {
         this.luaThread = lua.lua_newthread(L);
-        lua.luaL_loadstring(this.luaThread, 'repeat runCallback("OnFrame") until coroutine.yield()');
+        res = lua.luaL_loadstring(this.luaThread, `
+            local events = ...
+            while true do
+                for i = 1, #events do
+                    local event = events[i]
+                    runCallback(event.type, event.arg)
+                end
+                runCallback("OnFrame")
+                events = coroutine.yield()
+            end
+        `);
+
+        if (res !== 0)
+            throw new Error("error in compiling render thread: " + res);
     }
-    var res;
-    res = lua.lua_resume(this.luaThread, 0, 0);
+
+    lua.lua_createtable(this.luaThread, 0, 0);
+
+    var event;
+    var i = 1;
+    while (event = render.events.pop()) {
+        lua.lua_createtable(this.luaThread,  0, 0);
+        for (var key in event) {
+            lua.lua_pushstring(this.luaThread, event[key]);
+            lua.lua_setfield(this.luaThread, -2, key);
+        }
+        lua.lua_rawseti(this.luaThread, -2, i++);
+    }
+
+    res = lua.lua_resume(this.luaThread, 0, 1);
 
     if (res === 2) // LUA_ERRRUN
-        throw new Error("render thread did not render successfully: " + lua.lua_tostring(L, -1));
+        throw new Error("render thread did not render successfully: " + lua.lua_tostring(this.luaThread, -1));
     else if (res !== 1)
         throw new Error("render thread ended");
 
@@ -323,9 +398,7 @@ render.AdvanceFrame = function AdvanceFrame() {
     this.layer = 0;
     this.subLayer = 0;
 
-    // call lua OnFrame
-    // render from queue
-    // TODO: not string
+    // call into lua
     this.RunThread(L);
     
     gl.clearColor(0.0, 0.0, 0.0, 1.0);

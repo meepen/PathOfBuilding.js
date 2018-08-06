@@ -273,6 +273,17 @@ static int LoadFile(lua_State *L) {
 	return lua_yieldk(L, 1, (lua_KContext) idx, LoadFileCont); 
 }
 
+static int IsKeyDown(lua_State *L) {
+	int down = EM_ASM_INT(({
+		return render.IsKeyDown(Pointer_stringify($0)) ? 1 : 0;
+	}),
+		lua_tostring(L, 1)
+	);
+
+	lua_pushboolean(L, down);
+	return 1;
+}
+
 struct reg emscripten[] = {
 	{"run", &run},
 	{"SetDrawColor", &SetDrawColor},
@@ -289,6 +300,7 @@ struct reg emscripten[] = {
 	{"SetFileData", &SetFileData},
 	{"LoadImage", &LoadImage},
 	{"LoadFile", &LoadFile},
+	{"IsKeyDown", &IsKeyDown},
 	{0, 0}
 };
 
