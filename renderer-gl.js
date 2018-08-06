@@ -442,14 +442,17 @@ render.AdvanceFrame = function AdvanceFrame() {
                 gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
             
                 gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+
+                var texcoords = Float32Array.from([
+                    obj.s1, obj.t1,
+                    obj.s2, obj.t2,
+                    obj.s3, obj.t3,
+                    obj.s4, obj.t4
+                ]);
+                console.log(texcoords);
                 gl.bufferData(
                     gl.ARRAY_BUFFER,
-                    new Float32Array([
-                        obj.s1, obj.t1,
-                        obj.s2, obj.t2,
-                        obj.s3, obj.t3,
-                        obj.s4, obj.t4
-                    ]),
+                    texcoords,
                     gl.STATIC_DRAW
                 );
                 gl.vertexAttribPointer(
@@ -466,10 +469,10 @@ render.AdvanceFrame = function AdvanceFrame() {
                 gl.bufferData(
                     gl.ARRAY_BUFFER,
                     new Float32Array([
-                        1, 1, 1, 1,
-                        1, 1, 1, 1,
-                        1, 1, 1, 1,
-                        1, 1, 1, 1
+                        ...last_color,
+                        ...last_color,
+                        ...last_color,
+                        ...last_color
                     ]),
                     gl.STATIC_DRAW
                 );
@@ -699,7 +702,7 @@ render.LoadImage = function LoadImage(name) {
         height: 0,
         loaded: false,
         error: false,
-        image: new Image,
+        image: new Image(),
     };
     var img = obj.image;
 
