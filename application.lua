@@ -71,7 +71,7 @@ do
 end
 
 function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
-	js.DrawImage(imgHandle and imgHandle.idx or nil, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom)
+	js.DrawImage(imgHandle and imgHandle.idx or nil, left, top, width, height, tcLeft or 0, tcTop or 0, tcRight or 1, tcBottom or 1)
 end
 function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
 	js.DrawImageQuad(imgHandle and imgHandle.idx or nil, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4)
@@ -104,7 +104,9 @@ function GetCursorPos()
 end
 function SetCursorPos(x, y) end
 function ShowCursor(doShow) end
-function IsKeyDown(keyName) end
+function IsKeyDown(keyName)
+	return js.IsKeyDown(keyName)
+end
 function Copy(text) end
 function Paste() end
 function Deflate(data)

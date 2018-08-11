@@ -54,7 +54,7 @@ static int DrawImage(lua_State *L) {
 
 static int DrawImageQuad(lua_State *L) {
 	EM_ASM_(({
-		render.DrawImageQuad($0, $1, $2, $3, $4, $5, $6, $7, $8, $9);
+		_js_arguments = [$0, $1, $2, $3, $4, $5, $6, $7, $8, $9];
 	}),
 		lua_tonumber(L, 1),
 		lua_tonumber(L, 2),
@@ -65,14 +65,21 @@ static int DrawImageQuad(lua_State *L) {
 		lua_tonumber(L, 7),
 		lua_tonumber(L, 8),
 		lua_tonumber(L, 9),
-		lua_tonumber(L, 10),
+		lua_tonumber(L, 10)
+	);
+	EM_ASM_(({
+		_js_arguments.push($0, $1, $2, $3, $4, $5, $6);
+		render.DrawImageQuad.apply(render, _js_arguments);
+		delete _js_arguments;
+	}),
 		lua_tonumber(L, 11),
 		lua_tonumber(L, 12),
 		lua_tonumber(L, 13),
 		lua_tonumber(L, 14),
 		lua_tonumber(L, 15),
 		lua_tonumber(L, 16),
-		lua_tonumber(L, 17));
+		lua_tonumber(L, 17)
+	);
 	return 0;
 }
 
@@ -266,6 +273,17 @@ static int LoadFile(lua_State *L) {
 	return lua_yieldk(L, 1, (lua_KContext) idx, LoadFileCont); 
 }
 
+static int IsKeyDown(lua_State *L) {
+	int down = EM_ASM_INT(({
+		return render.IsKeyDown(Pointer_stringify($0)) ? 1 : 0;
+	}),
+		lua_tostring(L, 1)
+	);
+
+	lua_pushboolean(L, down);
+	return 1;
+}
+
 struct reg emscripten[] = {
 	{"run", &run},
 	{"SetDrawColor", &SetDrawColor},
@@ -282,6 +300,7 @@ struct reg emscripten[] = {
 	{"SetFileData", &SetFileData},
 	{"LoadImage", &LoadImage},
 	{"LoadFile", &LoadFile},
+	{"IsKeyDown", &IsKeyDown},
 	{0, 0}
 };
 

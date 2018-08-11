@@ -2,19 +2,79 @@ var render = window.render = {
     layer: 0,
     subLayer: 0,
     shaders: {},
+    events: [],
+    renderState: {
+        viewport: {
+            x: 0,
+            y: 0,
+            width: 1280,
+            height: 720
+        }
+    }
 };
 
 var canvas = window.canvas = render.canvas = document.getElementById("gl");
-canvas.width = 1280;
-canvas.height = 720;
+canvas.width = render.renderState.viewport.width;
+canvas.height = render.renderState.viewport.height;
 
 canvas.addEventListener("mousemove", function mousemove(x) {
     render.cx = x.clientX;
     render.cy = x.clientY;
 });
 
+var keyStateTranslations = {
+    "Control": "CTRL",
+    "ArrowRight": "RIGHT",
+    "ArrowUp": "UP",
+    "ArrowLeft": "LEFT",
+    "ArrowRight": "RIGHT",
+    "Shift": "SHIFT",
+    "Alt": "ALT"
+}
+var keyTranslations = {};
+render.keyStates = {};
+
+canvas.addEventListener("keydown", function keydown(x) {
+    if (keyStateTranslations[x.key]) {
+        render.keyStates[keyStateTranslations[x.key]] = true;
+    }
+    else if (keyTranslations[x.key]) {
+
+    }
+});
+
+canvas.addEventListener("keyup", function keyup(x) {
+    if (keyStateTranslations[x.key]) {
+        render.keyStates[keyStateTranslations[x.key]] = false;
+    }
+    else if (keyTranslations[x.key]) {
+        
+    }
+});
+
+window.addEventListener("wheel", function onwheel(x) {
+    if (x.deltaY === 0)
+        return;
+    
+    // Unfortunately, wheel event has deltaY at a multiplier dependent on browser, so we can't scroll properly
+    render.events.push({
+        type: "OnKeyUp",
+        arg: "WHEEL" + (x.deltaY > 0 ? "DOWN" : "UP")
+    });
+});
+
+render.IsKeyDown = function IsKeyDown(key) {
+    return !!render.keyStates[key];
+}
+
+
+
 var ctx2d = document.createElement("canvas").getContext("2d");
-var gl = render.gl = canvas.getContext("webgl", { alpha: false });
+var gl = render.gl = canvas.getContext("webgl2", { alpha: false });
+if (!gl) {
+    alert("This browser doesn't support WebGL 2!");
+    throw new Error("doesn't support webgl2");
+}
 
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -23,7 +83,7 @@ render.Initialize = function Initialize() {
     return glFonts.Load( gl );
 }
 
-render.InitShader = function InitShader(vsSource, fsSource) {
+render.InitShader = function InitShader(vsSource, fsSource, binds) {
     var gl = this.gl;
 
     var vertexShader = this.LoadShader(gl.VERTEX_SHADER, vsSource);
@@ -36,8 +96,7 @@ render.InitShader = function InitShader(vsSource, fsSource) {
 
 
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shaderProgram));
-        return null;
+        throw new Error("Unable to initialize the shader program: " + gl.getProgramInfoLog(shaderProgram));
     }
 
     return shaderProgram;
@@ -51,57 +110,68 @@ render.LoadShader = function LoadShader(type, source) {
     gl.compileShader(shader);
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+        var log = gl.getShaderInfoLog(shader)
         gl.deleteShader(shader);
-        return null;
+        throw new Error("An error occurred compiling the shaders: " + log);
     }
 
     return shader;
 }
 
 var basic = render.shaders["basic"] = render.InitShader(
-    `
-        attribute vec2 position;
+    `#version 300 es
+        layout(location=0) in vec2 position;
         uniform vec2 scale;
+        uniform vec2 offset;
 
         void main() {
-            gl_Position = vec4((position * scale - vec2(1.0, 1.0)) * vec2(1, -1), 1.0, 1.0);
+            gl_Position = vec4(((position + offset) * scale - vec2(1.0, 1.0)) * vec2(1, -1), 0.0, 1.0);
         }
     `,
-    `
+    `#version 300 es
         precision mediump float;
+
         uniform vec4 color;
+
+        out vec4 _FragColor;
+
         void main() {
-            gl_FragColor = color;
+            _FragColor = color;
         }
     `
 );
 
 var basicTexture = render.shaders["basicTexture"] = render.InitShader(
-    `
-        attribute vec2 position;
-        attribute vec2 vTexCoord;
-        attribute vec4 vColor;
+    `#version 300 es
+        layout(location=0) in vec2 position;
+        in vec2 vTexCoord;
+        in vec4 vColor;
         uniform vec2 scale;
+        uniform vec2 offset;
 
-        varying vec2 fTexCoord;
-        varying vec4 fColor;
+        out vec2 fTexCoord;
+        out vec4 fColor;
 
         void main() {
             fTexCoord = vTexCoord;
             fColor = vColor;
-            gl_Position = vec4((position * scale - vec2(1.0, 1.0)) * vec2(1, -1), 1.0, 1.0);
+            gl_Position = vec4(((position + offset) * scale - vec2(1.0, 1.0)) * vec2(1, -1), 0.0, 1.0);
         }
     `,
-    `
+    `#version 300 es
         precision mediump float;
-        varying vec2 fTexCoord;
-        varying vec4 fColor;
+
+        in vec2 fTexCoord;
+        in vec4 fColor;
+
         uniform sampler2D texSampler;
+
+        out vec4 _FragColor;
+
         void main() {
-            gl_FragColor = texture2D(texSampler, fTexCoord);
-            gl_FragColor.rgb *= gl_FragColor.a;
-            gl_FragColor *= fColor;
+            _FragColor = texture(texSampler, fTexCoord);
+            _FragColor.rgb *= _FragColor.a;
+            _FragColor *= fColor;
         }
     `
 );
@@ -109,9 +179,10 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
 render.basic = {
     program: basic,
     attribLocations: {
-        position: gl.getAttribLocation(basic, "position"),
+        position: gl.getAttribLocation(basic, "position")
     },
     uniformLocations: {
+        offset: gl.getUniformLocation(basic, "offset"),
         scale: gl.getUniformLocation(basic, "scale"),
         color: gl.getUniformLocation(basic, "color")
     },
@@ -120,13 +191,14 @@ render.basic = {
 render.basicTexture = {
     program: basicTexture,
     attribLocations: {
-        position: gl.getAttribLocation(basicTexture, "position"),
         vTexCoord: gl.getAttribLocation(basicTexture, "vTexCoord"),
-        vColor: gl.getAttribLocation(basicTexture, "vColor"),
+        position: gl.getAttribLocation(basicTexture, "position"),
+        vColor: gl.getAttribLocation(basicTexture, "vColor")
     },
     uniformLocations: {
-        scale: gl.getUniformLocation(basicTexture, "scale"),
         texSampler: gl.getUniformLocation(basicTexture, "texSampler"),
+        offset: gl.getUniformLocation(basicTexture, "offset"),
+        scale: gl.getUniformLocation(basicTexture, "scale")
     },
 };
 
@@ -157,15 +229,42 @@ function sorter(a, b) {
 }
 
 render.RunThread = function RunThread() {
+
     if (!this.luaThread) {
         this.luaThread = lua.lua_newthread(L);
-        lua.luaL_loadstring(this.luaThread, 'repeat runCallback("OnFrame") until coroutine.yield()');
+        res = lua.luaL_loadstring(this.luaThread, `
+            local events = ...
+            while true do
+                for i = 1, #events do
+                    local event = events[i]
+                    runCallback(event.type, event.arg)
+                end
+                runCallback("OnFrame")
+                events = coroutine.yield()
+            end
+        `);
+
+        if (res !== 0)
+            throw new Error("error in compiling render thread: " + res);
     }
-    var res;
-    res = lua.lua_resume(this.luaThread, 0, 0);
+
+    lua.lua_createtable(this.luaThread, 0, 0);
+
+    var event;
+    var i = 1;
+    while (event = render.events.pop()) {
+        lua.lua_createtable(this.luaThread,  0, 0);
+        for (var key in event) {
+            lua.lua_pushstring(this.luaThread, event[key]);
+            lua.lua_setfield(this.luaThread, -2, key);
+        }
+        lua.lua_rawseti(this.luaThread, -2, i++);
+    }
+
+    res = lua.lua_resume(this.luaThread, 0, 1);
 
     if (res === 2) // LUA_ERRRUN
-        throw new Error("render thread did not render successfully: " + lua.lua_tostring(L, -1));
+        throw new Error("render thread did not render successfully: " + lua.lua_tostring(this.luaThread, -1));
     else if (res !== 1)
         throw new Error("render thread ended");
 
@@ -201,6 +300,9 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
 
     gl.useProgram(shaderInfo.program);
+
+    var viewport = this.renderState.viewport;
+    gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
 
     gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
     gl.uniform4fv(shaderInfo.uniformLocations.color, col);
@@ -305,6 +407,9 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
 
     gl.useProgram(shaderInfo.program);
 
+    var viewport = this.renderState.viewport;
+    gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
+
     gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
@@ -315,16 +420,101 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
+render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
+    var shaderInfo = this.basicTexture;
+
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        Float32Array.from([
+            pos.x1, pos.y1,
+            pos.x2, pos.y2,
+            pos.x3, pos.y3,
+            pos.x4, pos.y4
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.position,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        Float32Array.from([
+            texPos.s1, texPos.t1,
+            texPos.s2, texPos.t2,
+            texPos.s3, texPos.t3,
+            texPos.s4, texPos.t4
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vTexCoord,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            ...color,
+            ...color,
+            ...color,
+            ...color
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vColor,
+        4,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
+
+    gl.useProgram(shaderInfo.program);
+
+    var viewport = this.renderState.viewport;
+    gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
+
+    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+}
+
+render.RenderItem = function RenderItem(obj) {
+
+}
+
 render.AdvanceFrame = function AdvanceFrame() {
+    var gl = this.gl
     this.renderCount = 0;
     this.queue = [];
 
     this.layer = 0;
     this.subLayer = 0;
 
-    // call lua OnFrame
-    // render from queue
-    // TODO: not string
+    // call into lua
     this.RunThread(L);
     
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -338,83 +528,88 @@ render.AdvanceFrame = function AdvanceFrame() {
     this.last_queue = queue.slice()
     queue.sort(sorter)
 
-    var offset_x = 0, offset_y = 0;
-
-    var last_color = [1, 1, 1, 1];
+    var viewport = this.renderState.viewport;
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = canvas.width;
+    viewport.height = canvas.height;
 
     for (; queue.length;) {
         var obj = queue.pop();
 
-        if (obj.color !== undefined && last_color !== obj.color) {
-            last_color = obj.color;
-        }
-
         switch (obj.type) {
             case "DrawRect":
-                this.RealDrawRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height, last_color);
+                this.RealDrawRect(obj.left, obj.top, obj.width, obj.height, obj.color);
                 break;
 
             case "DrawString":
-                this.RealDrawString(obj.left + offset_x, obj.top + offset_y, obj.font, obj.height, obj.text, obj.align);
+                this.RealDrawString(obj.left, obj.top, obj.font, obj.height, obj.text, obj.align);
                 break;
 
             case "SetViewport":
-                offset_x = 0;
-                offset_y = 0;
-
                 if (obj.x !== null) {
-                    offset_x = obj.x;
-                    offset_y = obj.y;
+                    viewport.x = obj.x;
+                    viewport.y = obj.y;
+                    viewport.width = obj.width;
+                    viewport.height = obj.height;
+                }
+                else {
+                    viewport.x = 0;
+                    viewport.y = 0;
+                    viewport.width = canvas.width;
+                    viewport.height = canvas.height;
                 }
                 break;
 
-            /*case "SetDrawColor":
-                break;
             case "DrawImage":
                 var imgEntry = this.images[obj.image];
 
-                if (!imgEntry || imgEntry.error) {
-                    var oldFillStyle = ctx.fillStyle;
-                    ctx.fillStyle ='pink';
-                    ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                    ctx.fillStyle = oldFillStyle;
+                if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
                     break;
                 }
 
-                var img = imgEntry.image;
+                var u1 = obj.tcLeft,
+                    v1 = obj.tcTop,
+                    u2 = obj.tcRight,
+                    v2 = obj.tcBottom;
 
-                if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
-                {
-                    var sx = img.width * obj.tcLeft;
-                    var sy = img.height * obj.tcTop;
-                    var sw = (img.width * obj.tcRight) - sx;
-                    var sh = (img.height * obj.tcBottom) - sy;
-
-                    // background hack - it's wrong
-                    if ( sw > img.width || sh > img.height )
-                    {
-                        ctx.drawImage(img, 0, 0, img.width, img.height, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                    }
-                    else
-                    {
-                        ctx.drawImage(img, sx, sy, sw, sh, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                    }
-                }
-                else
-                {
-                    ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                }
+                this.DrawTexture(imgEntry.texture, {
+                    x1: obj.left,             y1: obj.top,
+                    x2: obj.left,             y2: obj.top + obj.height,
+                    x3: obj.left + obj.width, y3: obj.top + obj.height,
+                    x4: obj.left + obj.width, y4: obj.top
+                }, {
+                    s1: u1, t1: v1,
+                    s2: u1, t2: v2,
+                    s3: u2, t3: v2,
+                    s4: u2, t4: v1
+                }, obj.color);
 
                 break;
+
             case "DrawImageQuad":
-                ctx.beginPath();
-                    ctx.moveTo(obj.x1, obj.y1);
-                    ctx.lineTo(obj.x2, obj.y2);
-                    ctx.lineTo(obj.x3, obj.y3);
-                    ctx.lineTo(obj.x4, obj.y4);
-                ctx.stroke();
+
+                var imgEntry = this.images[obj.image];
+
+                if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
+                    break;
+                }
+
+                this.DrawTexture(imgEntry.texture, {
+                    x1: obj.x1, y1: obj.y1,
+                    x2: obj.x2, y2: obj.y2,
+                    x3: obj.x3, y3: obj.y3,
+                    x4: obj.x4, y4: obj.y4
+                }, {
+                    s1: obj.s1, t1: obj.t1,
+                    s2: obj.s2, t2: obj.t2,
+                    s3: obj.s3, t3: obj.t3,
+                    s4: obj.s4, t4: obj.t4
+                }, obj.color);
 
                 break;
+
+/*
 
             case "SetViewport":
                 var textBaseline = ctx.textBaseline;
@@ -439,39 +634,6 @@ render.AdvanceFrame = function AdvanceFrame() {
                     ctx.font = font;
                 }
                 break;
-
-            case "DrawString":
-                // TODO: separate _x crap
-                if ( obj.align == "LEFT" || obj.align == "LEFT_X" )
-                    ctx.textAlign = "left";
-                else if ( obj.align == "RIGHT" || obj.align == "RIGHT_X" )
-                    ctx.textAlign = "right";
-                else if ( obj.align == "CENTER" || obj.align == "CENTER_X" )
-                    ctx.textAlign = "center";
-
-                ctx.font = "" + (obj.height - 2) + "px " + (obj.font == "FIXED" ? "monospace" : "sans-serif");
-                ctx.textBaseline = "top";
-                var originalStyle = ctx.fillStyle;
-
-                var arr = this.StringToFormattedArray(obj.text);
-                var text_offset = 0;
-                
-                ctx.fillStyle = "rgba(255,255,255,1)";
-                for (var i = 0; i < arr.length; i++) {
-                    var part = arr[i];
-                    
-                    if (typeof part == "string") {
-                        ctx.fillText(part, obj.left + text_offset + offset_x, obj.top + offset_y);
-                        text_offset += ctx.measureText(part).width;
-                    }
-                    else {
-                        ctx.fillStyle = "rgba(" + (part.r * 255) + "," + (part.g * 255) + "," + (part.b * 255) + "," + (part.a) + ")";
-                    }
-                }
-
-                ctx.fillStyle = originalStyle;
-                break;
-
 */
             default:
                 //console.log("not implemented: " + obj.type);
@@ -585,6 +747,7 @@ render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3,
         s2: s2, t2: t2,
         s3: s3, t3: t3,
         s4: s4, t4: t4,
+        color: this.color,
         type: "DrawImageQuad"
     });
 }
@@ -617,22 +780,44 @@ render.LoadImage = function LoadImage(name) {
         height: 0,
         loaded: false,
         error: false,
-        image: document.createElement("img"),
+        image: new Image(),
+    };
+    var img = obj.image;
+
+    obj.texture = gl.createTexture();
+
+    img.crossOrigin = "anonymous";
+
+    img.onload = () => {
+        console.log( "ONLOAD!", name );
+        gl.bindTexture(gl.TEXTURE_2D, obj.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+        // Might not be power-of-2. We don't care for now, but this might hurt us
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+        obj.width = img.width;
+        obj.height = img.height;
+
+        obj.loaded = true;
     };
 
-    obj.image.onload = ( () => {
-        console.log( "ONLOAD!", name );
-        obj.width = obj.image.width;
-        obj.height = obj.image.height;
-        obj.loaded = true;
-    } );
+    img.onerror = () => {
+        gl.bindTexture(gl.TEXTURE_2D, obj.texture);
 
-    obj.image.onerror = ( () => {
+        var pinkRGBA = new Uint8Array([255, 0, 220, 255]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pinkRGBA);
+
+        obj.width = 1;
+        obj.height = 1;
+        
         obj.loaded = true;
         obj.error = true;
-    } );
+    };
 
-    obj.image.src = localStorage[name];
+    obj.image.src = `http://144.202.109.121:9000/?url=${localStorage[name]}`;
 
     return this.images.push(obj) - 1;
 }

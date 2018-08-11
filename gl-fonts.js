@@ -2487,7 +2487,7 @@ var StringToFormattedArray = function StringToFormattedArray(str) {
 var loadFont = function loadFont(gl, font)
 {
 	return new Promise( (resolve, reject) => {
-		var img = document.createElement("img");
+		var img = new Image;
 
 		font.Texture = gl.createTexture();
 
