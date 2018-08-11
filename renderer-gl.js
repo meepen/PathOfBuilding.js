@@ -390,6 +390,85 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
+render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
+    var shaderInfo = this.basicTexture;
+
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        Float32Array.from([
+            pos.x1, pos.y1,
+            pos.x2, pos.y2,
+            pos.x3, pos.y3,
+            pos.x4, pos.y4
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.position,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        Float32Array.from([
+            texPos.s1, texPos.t1,
+            texPos.s2, texPos.t2,
+            texPos.s3, texPos.t3,
+            texPos.s4, texPos.t4
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vTexCoord,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            ...color,
+            ...color,
+            ...color,
+            ...color
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vColor,
+        4,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
+
+    gl.useProgram(shaderInfo.program);
+
+    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+}
+
 render.AdvanceFrame = function AdvanceFrame() {
     var gl = this.gl
     this.renderCount = 0;
@@ -442,45 +521,32 @@ render.AdvanceFrame = function AdvanceFrame() {
                 }
                 break;
 
-            /*case "SetDrawColor":
-                break;
             case "DrawImage":
                 var imgEntry = this.images[obj.image];
 
-                if (!imgEntry || imgEntry.error) {
-                    var oldFillStyle = ctx.fillStyle;
-                    ctx.fillStyle ='pink';
-                    ctx.fillRect(obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                    ctx.fillStyle = oldFillStyle;
+                if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
                     break;
                 }
 
-                var img = imgEntry.image;
+                var u1 = obj.tcLeft,
+                    v1 = obj.tcTop,
+                    u2 = obj.tcRight,
+                    v2 = obj.tcBottom;
 
-                if ( obj.tcLeft && obj.tcTop && obj.tcRight && obj.tcBottom )
-                {
-                    var sx = img.width * obj.tcLeft;
-                    var sy = img.height * obj.tcTop;
-                    var sw = (img.width * obj.tcRight) - sx;
-                    var sh = (img.height * obj.tcBottom) - sy;
-
-                    // background hack - it's wrong
-                    if ( sw > img.width || sh > img.height )
-                    {
-                        ctx.drawImage(img, 0, 0, img.width, img.height, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                    }
-                    else
-                    {
-                        ctx.drawImage(img, sx, sy, sw, sh, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                    }
-                }
-                else
-                {
-                    ctx.drawImage(img, obj.left + offset_x, obj.top + offset_y, obj.width, obj.height);
-                }
+                this.DrawTexture(imgEntry.texture, {
+                    x1: obj.left,             y1: obj.top,
+                    x2: obj.left,             y2: obj.top + obj.height,
+                    x3: obj.left + obj.width, y3: obj.top + obj.height,
+                    x4: obj.left + obj.width, y4: obj.top
+                }, {
+                    s1: u1, t1: v1,
+                    s2: u1, t2: v2,
+                    s3: u2, t3: v2,
+                    s4: u2, t4: v1
+                }, last_color);
 
                 break;
-            */
+
             case "DrawImageQuad":
 
                 var imgEntry = this.images[obj.image];
@@ -489,83 +555,17 @@ render.AdvanceFrame = function AdvanceFrame() {
                     break;
                 }
 
-                var shaderInfo = this.basicTexture;
-
-                gl.bindTexture(gl.TEXTURE_2D, imgEntry.texture);
-            
-                gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    new Float32Array([
-                        obj.x1, obj.y1,
-                        obj.x2, obj.y2,
-                        obj.x3, obj.y3,
-                        obj.x4, obj.y4
-                    ]),
-                    gl.STATIC_DRAW
-                );
-                gl.vertexAttribPointer(
-                    shaderInfo.attribLocations.position,
-                    2,
-                    gl.FLOAT,
-                    false,
-                    0,
-                    0
-                );
-                gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
-            
-                gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    Float32Array.from([
-                        obj.s1, obj.t1,
-                        obj.s2, obj.t2,
-                        obj.s3, obj.t3,
-                        obj.s4, obj.t4
-                    ]),
-                    gl.STATIC_DRAW
-                );
-                gl.vertexAttribPointer(
-                    shaderInfo.attribLocations.vTexCoord,
-                    2,
-                    gl.FLOAT,
-                    false,
-                    0,
-                    0
-                );
-                gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
-            
-                gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    new Float32Array([
-                        ...last_color,
-                        ...last_color,
-                        ...last_color,
-                        ...last_color
-                    ]),
-                    gl.STATIC_DRAW
-                );
-                gl.vertexAttribPointer(
-                    shaderInfo.attribLocations.vColor,
-                    4,
-                    gl.FLOAT,
-                    false,
-                    0,
-                    0
-                );
-                gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
-            
-                gl.useProgram(shaderInfo.program);
-            
-                gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
-                gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
-            
-                gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
-            
-                // :/
-                gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
-                gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+                this.DrawTexture(imgEntry.texture, {
+                    x1: obj.x1, y1: obj.y1,
+                    x2: obj.x2, y2: obj.y2,
+                    x3: obj.x3, y3: obj.y3,
+                    x4: obj.x4, y4: obj.y4
+                }, {
+                    s1: obj.s1, t1: obj.t1,
+                    s2: obj.s2, t2: obj.t2,
+                    s3: obj.s3, t3: obj.t3,
+                    s4: obj.s4, t4: obj.t4
+                }, last_color);
 
                 break;
 
@@ -740,6 +740,7 @@ render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3,
         s2: s2, t2: t2,
         s3: s3, t3: t3,
         s4: s4, t4: t4,
+        color: this.color,
         type: "DrawImageQuad"
     });
 }
