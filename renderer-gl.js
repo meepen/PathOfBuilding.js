@@ -130,12 +130,12 @@ render.LoadShader = function LoadShader(type, source) {
     return shader;
 }
 
-var basicTexture = render.shaders["basicTexture"] = render.InitShader(
+var Shader = render.shaders["Shader"] = render.InitShader(
     `#version 300 es
-        in vec2 position;
+        in vec2 vPosition;
         in vec2 vTexCoord;
         in vec4 vColor;
-        uniform mat3 projection;
+        uniform mat3 uProjection;
 
         out vec2 fTexCoord;
         out vec4 fColor;
@@ -143,7 +143,7 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
         void main() {
             fTexCoord = vTexCoord;
             fColor = vColor;
-            gl_Position = vec4((projection * vec3(position, 1)).xy, 0, 1);
+            gl_Position = vec4((uProjection * vec3(vPosition, 1)).xy, 0, 1);
         }
     `,
     `#version 300 es
@@ -152,28 +152,28 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
         in vec2 fTexCoord;
         in vec4 fColor;
 
-        uniform sampler2D texSampler;
+        uniform sampler2D uTexture;
 
-        out vec4 _FragColor;
+        out vec4 FragColor;
 
         void main() {
-            _FragColor = texture(texSampler, fTexCoord);
-            _FragColor.rgb *= _FragColor.a;
-            _FragColor *= fColor;
+            FragColor = texture(uTexture, fTexCoord);
+            FragColor.rgb *= FragColor.a;
+            FragColor *= fColor;
         }
     `
 );
 
-render.basicTexture = {
-    program: basicTexture,
+render.Shader = {
+    program: Shader,
     attribLocations: {
-        vTexCoord: gl.getAttribLocation(basicTexture, "vTexCoord"),
-        position: gl.getAttribLocation(basicTexture, "position"),
-        vColor: gl.getAttribLocation(basicTexture, "vColor")
+        vPosition: gl.getAttribLocation(Shader, "vPosition"),
+        vTexCoord: gl.getAttribLocation(Shader, "vTexCoord"),
+        vColor:    gl.getAttribLocation(Shader, "vColor")
     },
     uniformLocations: {
-        texSampler: gl.getUniformLocation(basicTexture, "texSampler"),
-        projection: gl.getUniformLocation(basicTexture, "projection")
+        uTexture:    gl.getUniformLocation(Shader, "uTexture"),
+        uProjection: gl.getUniformLocation(Shader, "uProjection")
     },
 };
 
@@ -250,7 +250,7 @@ render.RunThread = function RunThread() {
 
 render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     var gl = this.gl;
-    var shaderInfo = this.basicTexture;
+    var shaderInfo = this.Shader;
 
     gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
 
@@ -266,14 +266,14 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.position,
+        shaderInfo.attribLocations.vPosition,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vPosition);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
@@ -322,13 +322,13 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     var viewport = this.viewport;
     var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
-    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.uProjection, false, mat);
+    gl.uniform1i(shaderInfo.uniformLocations.uTexture, 0);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // :/
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vPsition);
     gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
@@ -364,7 +364,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     }
 
     var gl = this.gl;
-    var shaderInfo = this.basicTexture;
+    var shaderInfo = this.Shader;
     var res = glFonts.BuildBuffers(fontName, height, text, x, y);
 
     if ( res.VertCount == 0 )
@@ -379,14 +379,14 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.position,
+        shaderInfo.attribLocations.vPosition,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vPosition);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
@@ -425,18 +425,18 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     var viewport = this.viewport;
     var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
-    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.uProjection, false, mat);
+    gl.uniform1i(shaderInfo.uniformLocations.uTexture, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
 
     // :/
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vPosition);
     gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
 render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
-    var shaderInfo = this.basicTexture;
+    var shaderInfo = this.Shader;
 
     gl.bindTexture(gl.TEXTURE_2D, tex);
 
@@ -452,14 +452,14 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.position,
+        shaderInfo.attribLocations.vPosition,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vPosition);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
@@ -508,12 +508,12 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
     var viewport = this.viewport;
     var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
-    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.uProjection, false, mat);
+    gl.uniform1i(shaderInfo.uniformLocations.uTexture, 0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vPosition);
     gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
