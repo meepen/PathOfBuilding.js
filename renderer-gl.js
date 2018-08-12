@@ -358,7 +358,7 @@ render.RunThread = function RunThread() {
 
 render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
     // TODO: Until strings are in the buffer, we have to always flush here
-    this.Flush();
+    this.Flush("Drawing String");
 
     var width = glFonts.GetTextWidth(fontName, height, text);
 
@@ -440,10 +440,12 @@ render.TexCoordBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
 render.ColorBuffer = new Float32Array(4 * 6 * BUFFER_SIZE);
 render.TextureBuffer = new Int8Array(1 * 6 * BUFFER_SIZE);
 
-render.Flush = function Flush()
+render.Flush = function Flush(reason)
 {
     if (this.VertCount == 0)
         return;
+
+    //console.log( "Flushing " + this.VertCount + " verts (" + reason + ")" );
 
     for (var i = 0; i < this.CurrentTextures.length; i++)
     {
@@ -498,14 +500,14 @@ render.Flush = function Flush()
 render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
     if (this.VertCount + 6 > BUFFER_SIZE)
     {
-        this.Flush();
+        this.Flush("Buffer Full");
     }
 
     var textureId = this.CurrentTextures.indexOf(tex);
 
     if (textureId == -1 && this.CurrentTextures.length >= 8)
     {
-        this.Flush();
+        this.Flush("Textures Full");
     }
 
     if (textureId == -1)
@@ -610,8 +612,7 @@ render.AdvanceFrame = function AdvanceFrame() {
                 break;
 
             case "SetViewport":
-                // TODO: If we don't need to change projection, we don't need this flush
-                this.Flush();
+                this.Flush("Viewport Changed");
 
                 if (obj.x !== null) {
                     viewport.x = obj.x;
@@ -683,6 +684,8 @@ render.AdvanceFrame = function AdvanceFrame() {
                 //console.log("not implemented: " + obj.type);
         }
     }
+
+    this.Flush("Frame Ended");
 }
 
 var annoying_shit = [
