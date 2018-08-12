@@ -121,11 +121,11 @@ render.LoadShader = function LoadShader(type, source) {
 var basic = render.shaders["basic"] = render.InitShader(
     `#version 300 es
         layout(location=0) in vec2 position;
-        uniform vec2 scale;
+        uniform mat3 projection;
         uniform vec2 offset;
 
         void main() {
-            gl_Position = vec4(((position + offset) * scale - vec2(1.0, 1.0)) * vec2(1, -1), 0.0, 1.0);
+            gl_Position = vec4((projection * vec3(position + offset, 1)).xy, 0, 1);
         }
     `,
     `#version 300 es
@@ -146,7 +146,7 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
         layout(location=0) in vec2 position;
         in vec2 vTexCoord;
         in vec4 vColor;
-        uniform vec2 scale;
+        uniform mat3 projection;
         uniform vec2 offset;
 
         out vec2 fTexCoord;
@@ -155,7 +155,7 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
         void main() {
             fTexCoord = vTexCoord;
             fColor = vColor;
-            gl_Position = vec4(((position + offset) * scale - vec2(1.0, 1.0)) * vec2(1, -1), 0.0, 1.0);
+            gl_Position = vec4((projection * vec3(position + offset, 1)).xy, 0, 1);
         }
     `,
     `#version 300 es
@@ -183,7 +183,7 @@ render.basic = {
     },
     uniformLocations: {
         offset: gl.getUniformLocation(basic, "offset"),
-        scale: gl.getUniformLocation(basic, "scale"),
+        projection: gl.getUniformLocation(basic, "projection"),
         color: gl.getUniformLocation(basic, "color")
     },
 };
@@ -198,7 +198,7 @@ render.basicTexture = {
     uniformLocations: {
         texSampler: gl.getUniformLocation(basicTexture, "texSampler"),
         offset: gl.getUniformLocation(basicTexture, "offset"),
-        scale: gl.getUniformLocation(basicTexture, "scale")
+        projection: gl.getUniformLocation(basicTexture, "projection")
     },
 };
 
@@ -304,7 +304,7 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     var viewport = this.renderState.viewport;
     gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
 
-    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat3.projection(mat3.create(), canvas.width, canvas.height));
     gl.uniform4fv(shaderInfo.uniformLocations.color, col);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -410,7 +410,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     var viewport = this.renderState.viewport;
     gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
 
-    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat3.projection(mat3.create(), canvas.width, canvas.height));
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
@@ -493,7 +493,7 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
     var viewport = this.renderState.viewport;
     gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
 
-    gl.uniform2fv(shaderInfo.uniformLocations.scale, [2 / canvas.width, 2 / canvas.height]);
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat3.projection(mat3.create(), canvas.width, canvas.height));
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
