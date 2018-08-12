@@ -181,6 +181,36 @@ render.Shader = {
 
     gl.uniform1i(render.Shader.uTexture, 0);
     gl.uniformMatrix3fv(render.Shader.uProjection, false, mat3.projection(mat3.create(), render.viewport.width, render.viewport.height));
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
+    gl.vertexAttribPointer(
+        render.Shader.vPosition,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+    gl.vertexAttribPointer(
+        render.Shader.vTexCoord,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
+    gl.vertexAttribPointer(
+        render.Shader.vColor,
+        4,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
 }
 
 /*
@@ -301,45 +331,21 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     gl.bufferData(
         gl.ARRAY_BUFFER,
         res.Positions,
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.vPosition,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
+        gl.DYNAMIC_DRAW
     );
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
         gl.ARRAY_BUFFER,
         res.TexCoords,
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.vTexCoord,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
+        gl.DYNAMIC_DRAW
     );
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
     gl.bufferData(
         gl.ARRAY_BUFFER,
         res.Colors,
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.vColor,
-        4,
-        gl.FLOAT,
-        false,
-        0,
-        0
+        gl.DYNAMIC_DRAW
     );
 
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
@@ -368,14 +374,6 @@ render.Flush = function Flush()
         0,
         this.VertCount * 2
     );
-    gl.vertexAttribPointer(
-        this.Shader.vPosition,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
@@ -385,14 +383,6 @@ render.Flush = function Flush()
         0,
         this.VertCount * 2
     );
-    gl.vertexAttribPointer(
-        this.Shader.vTexCoord,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
     gl.bufferData(
@@ -401,14 +391,6 @@ render.Flush = function Flush()
         gl.DYNAMIC_DRAW,
         0,
         this.VertCount * 4
-    );
-    gl.vertexAttribPointer(
-        this.Shader.vColor,
-        4,
-        gl.FLOAT,
-        false,
-        0,
-        0
     );
 
     gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
