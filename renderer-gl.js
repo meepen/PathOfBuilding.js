@@ -106,7 +106,6 @@ render.InitShader = function InitShader(vsSource, fsSource, binds) {
     gl.attachShader(shaderProgram, fragmentShader);
     gl.linkProgram(shaderProgram);
 
-
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
         throw new Error("Unable to initialize the shader program: " + gl.getProgramInfoLog(shaderProgram));
     }
@@ -165,7 +164,7 @@ var Shader = render.shaders["Shader"] = render.InitShader(
 );
 
 render.Shader = {
-    program: Shader,
+    Program: Shader,
     vPosition:   gl.getAttribLocation(Shader, "vPosition"),
     vTexCoord:   gl.getAttribLocation(Shader, "vTexCoord"),
     vColor:      gl.getAttribLocation(Shader, "vColor"),
@@ -173,9 +172,16 @@ render.Shader = {
     uProjection: gl.getUniformLocation(Shader, "uProjection")
 };
 
-gl.enableVertexAttribArray(render.Shader.vPosition);
-gl.enableVertexAttribArray(render.Shader.vTexCoord);
-gl.enableVertexAttribArray(render.Shader.vColor);
+{
+    gl.useProgram(render.Shader.Program);
+
+    gl.enableVertexAttribArray(render.Shader.vPosition);
+    gl.enableVertexAttribArray(render.Shader.vTexCoord);
+    gl.enableVertexAttribArray(render.Shader.vColor);
+
+    gl.uniform1i(render.Shader.uTexture, 0);
+    gl.uniformMatrix3fv(render.Shader.uProjection, false, mat3.projection(mat3.create(), render.viewport.width, render.viewport.height));
+}
 
 /*
 // we can rescale easily like this:
@@ -336,14 +342,6 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         0
     );
 
-    gl.useProgram(shaderInfo.program);
-
-    var viewport = this.viewport;
-    var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
-
-    gl.uniformMatrix3fv(shaderInfo.uProjection, false, mat);
-    gl.uniform1i(shaderInfo.uTexture, 0);
-
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
 }
 
@@ -412,13 +410,6 @@ render.Flush = function Flush()
         0,
         0
     );
-
-    gl.useProgram(this.Shader.program);
-
-    var projection = mat3.projection(mat3.create(), this.viewport.width, this.viewport.height);
-
-    gl.uniformMatrix3fv(this.Shader.uProjection, false, projection);
-    gl.uniform1i(this.Shader.uTexture, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
 
@@ -540,7 +531,10 @@ render.AdvanceFrame = function AdvanceFrame() {
                     viewport.width = canvas.width;
                     viewport.height = canvas.height;
                 }
+
                 gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+                gl.uniformMatrix3fv(this.Shader.uProjection, false, mat3.projection(mat3.create(), viewport.width, viewport.height));
+
                 break;
 
             case "DrawImage":
