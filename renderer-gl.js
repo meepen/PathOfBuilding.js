@@ -130,28 +130,6 @@ render.LoadShader = function LoadShader(type, source) {
     return shader;
 }
 
-var basic = render.shaders["basic"] = render.InitShader(
-    `#version 300 es
-        in vec2 position;
-        uniform mat3 projection;
-
-        void main() {
-            gl_Position = vec4((projection * vec3(position, 1)).xy, 0, 1);
-        }
-    `,
-    `#version 300 es
-        precision mediump float;
-
-        uniform vec4 color;
-
-        out vec4 _FragColor;
-
-        void main() {
-            _FragColor = color;
-        }
-    `
-);
-
 var basicTexture = render.shaders["basicTexture"] = render.InitShader(
     `#version 300 es
         in vec2 position;
