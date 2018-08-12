@@ -77,6 +77,7 @@ if (!gl) {
 var stupidPos = gl.createBuffer();
 var stupidTexCoord = gl.createBuffer();
 var stupidColor = gl.createBuffer();
+var stupidTexture = gl.createBuffer();
 
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -90,6 +91,30 @@ render.Initialize = function Initialize() {
 
         var whiteRGBA = new Uint8Array([255, 255, 255, 255]);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, whiteRGBA);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        gl.activeTexture(gl.TEXTURE7);
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
     }
 
     return glFonts.Load( gl );
@@ -134,14 +159,18 @@ var Shader = render.shaders["Shader"] = render.InitShader(
         in vec2 vPosition;
         in vec2 vTexCoord;
         in vec4 vColor;
+        in int vTexture;
+
         uniform mat3 uProjection;
 
         out vec2 fTexCoord;
         out vec4 fColor;
+        flat out int fTexture;
 
         void main() {
             fTexCoord = vTexCoord;
             fColor = vColor;
+            fTexture = vTexture;
             gl_Position = vec4((uProjection * vec3(vPosition, 1)).xy, 0, 1);
         }
     `,
@@ -150,13 +179,30 @@ var Shader = render.shaders["Shader"] = render.InitShader(
 
         in vec2 fTexCoord;
         in vec4 fColor;
+        flat in int fTexture;
 
-        uniform sampler2D uTexture;
+        uniform sampler2D uTextures[8];
 
         out vec4 FragColor;
 
         void main() {
-            FragColor = texture(uTexture, fTexCoord);
+            if (fTexture == 0)
+                FragColor = texture(uTextures[0], fTexCoord);
+            else if (fTexture == 1)
+                FragColor = texture(uTextures[1], fTexCoord);
+            else if (fTexture == 2)
+                FragColor = texture(uTextures[2], fTexCoord);
+            else if (fTexture == 3)
+                FragColor = texture(uTextures[3], fTexCoord);
+            else if (fTexture == 4)
+                FragColor = texture(uTextures[4], fTexCoord);
+            else if (fTexture == 5)
+                FragColor = texture(uTextures[5], fTexCoord);
+            else if (fTexture == 6)
+                FragColor = texture(uTextures[6], fTexCoord);
+            else if (fTexture == 7)
+                FragColor = texture(uTextures[7], fTexCoord);
+
             FragColor.rgb *= FragColor.a;
             FragColor *= fColor;
         }
@@ -168,7 +214,15 @@ render.Shader = {
     vPosition:   gl.getAttribLocation(Shader, "vPosition"),
     vTexCoord:   gl.getAttribLocation(Shader, "vTexCoord"),
     vColor:      gl.getAttribLocation(Shader, "vColor"),
-    uTexture:    gl.getUniformLocation(Shader, "uTexture"),
+    vTexture:    gl.getAttribLocation(Shader, "vTexture"),
+    uTextures0:  gl.getUniformLocation(Shader, "uTextures[0]"),
+    uTextures1:  gl.getUniformLocation(Shader, "uTextures[1]"),
+    uTextures2:  gl.getUniformLocation(Shader, "uTextures[2]"),
+    uTextures3:  gl.getUniformLocation(Shader, "uTextures[3]"),
+    uTextures4:  gl.getUniformLocation(Shader, "uTextures[4]"),
+    uTextures5:  gl.getUniformLocation(Shader, "uTextures[5]"),
+    uTextures6:  gl.getUniformLocation(Shader, "uTextures[6]"),
+    uTextures7:  gl.getUniformLocation(Shader, "uTextures[7]"),
     uProjection: gl.getUniformLocation(Shader, "uProjection")
 };
 
@@ -178,8 +232,16 @@ render.Shader = {
     gl.enableVertexAttribArray(render.Shader.vPosition);
     gl.enableVertexAttribArray(render.Shader.vTexCoord);
     gl.enableVertexAttribArray(render.Shader.vColor);
+    gl.enableVertexAttribArray(render.Shader.vTexture);
 
-    gl.uniform1i(render.Shader.uTexture, 0);
+    gl.uniform1i(render.Shader.uTextures0, 0);
+    gl.uniform1i(render.Shader.uTextures1, 1);
+    gl.uniform1i(render.Shader.uTextures2, 2);
+    gl.uniform1i(render.Shader.uTextures3, 3);
+    gl.uniform1i(render.Shader.uTextures4, 4);
+    gl.uniform1i(render.Shader.uTextures5, 5);
+    gl.uniform1i(render.Shader.uTextures6, 6);
+    gl.uniform1i(render.Shader.uTextures7, 7);
     gl.uniformMatrix3fv(render.Shader.uProjection, false, mat3.projection(mat3.create(), render.viewport.width, render.viewport.height));
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
@@ -207,6 +269,16 @@ render.Shader = {
         render.Shader.vColor,
         4,
         gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexture);
+    gl.vertexAttribIPointer(
+        render.Shader.vTexture,
+        1,
+        gl.BYTE,
         false,
         0,
         0
@@ -325,6 +397,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     if (res.VertCount == 0)
         return;
 
+    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, res.Texture);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
@@ -348,23 +421,35 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         gl.DYNAMIC_DRAW
     );
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexture);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        Int8Array.from(Array(res.VertCount).fill(0)),
+        gl.DYNAMIC_DRAW
+    );
+
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
 }
 
-const BUFFER_SIZE = 1024;
+const BUFFER_SIZE = 32768;
 
-render.CurrentTexture = null;
+render.CurrentTextures = [];
 render.VertCount = 0;
 render.PositionBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
 render.TexCoordBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
-render.ColorBuffer = new Float32Array(4 * 6 * BUFFER_SIZE); 
+render.ColorBuffer = new Float32Array(4 * 6 * BUFFER_SIZE);
+render.TextureBuffer = new Int8Array(1 * 6 * BUFFER_SIZE);
 
 render.Flush = function Flush()
 {
     if (this.VertCount == 0)
         return;
 
-    gl.bindTexture(gl.TEXTURE_2D, this.CurrentTexture);
+    for (var i = 0; i < this.CurrentTextures.length; i++)
+    {
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, this.CurrentTextures[i]);
+    }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
     gl.bufferData(
@@ -393,22 +478,39 @@ render.Flush = function Flush()
         this.VertCount * 4
     );
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexture);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        this.TextureBuffer,
+        gl.DYNAMIC_DRAW,
+        0,
+        this.VertCount
+    );
+
     gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
 
-    this.VertCount = 0;
+    X = this.CurrentTextures;
 
+    this.VertCount = 0;
+    this.CurrentTextures = [];
 }
 
 render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
-    if (tex != this.CurrentTexture)
-    {
-        this.Flush();
-        this.CurrentTexture = tex;
-    }
-
     if (this.VertCount + 6 > BUFFER_SIZE)
     {
         this.Flush();
+    }
+
+    var textureId = this.CurrentTextures.indexOf(tex);
+
+    if (textureId == -1 && this.CurrentTextures.length >= 8)
+    {
+        this.Flush();
+    }
+
+    if (textureId == -1)
+    {
+        textureId = this.CurrentTextures.push(tex) -1;
     }
 
     var positions = [
@@ -438,9 +540,19 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         ...color
     ];
 
+    var textures = [
+        textureId,
+        textureId,
+        textureId,
+        textureId,
+        textureId,
+        textureId,
+    ];
+
     this.PositionBuffer.set(positions, this.VertCount * 2)
     this.TexCoordBuffer.set(texCoords, this.VertCount * 2)
     this.ColorBuffer.set(colors, this.VertCount * 4)
+    this.TextureBuffer.set(textures, this.VertCount);
 
     this.VertCount += 6;
 }
