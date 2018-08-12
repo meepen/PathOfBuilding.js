@@ -166,16 +166,16 @@ var Shader = render.shaders["Shader"] = render.InitShader(
 
 render.Shader = {
     program: Shader,
-    attribLocations: {
-        vPosition: gl.getAttribLocation(Shader, "vPosition"),
-        vTexCoord: gl.getAttribLocation(Shader, "vTexCoord"),
-        vColor:    gl.getAttribLocation(Shader, "vColor")
-    },
-    uniformLocations: {
-        uTexture:    gl.getUniformLocation(Shader, "uTexture"),
-        uProjection: gl.getUniformLocation(Shader, "uProjection")
-    },
+    vPosition:   gl.getAttribLocation(Shader, "vPosition"),
+    vTexCoord:   gl.getAttribLocation(Shader, "vTexCoord"),
+    vColor:      gl.getAttribLocation(Shader, "vColor"),
+    uTexture:    gl.getUniformLocation(Shader, "uTexture"),
+    uProjection: gl.getUniformLocation(Shader, "uProjection")
 };
+
+gl.enableVertexAttribArray(render.Shader.vPosition);
+gl.enableVertexAttribArray(render.Shader.vTexCoord);
+gl.enableVertexAttribArray(render.Shader.vColor);
 
 /*
 // we can rescale easily like this:
@@ -248,90 +248,6 @@ render.RunThread = function RunThread() {
         throw new Error("unsupported render thread yield: " + lua.lua_tostring(this.luaThread, 1));
 }
 
-render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
-    var gl = this.gl;
-    var shaderInfo = this.Shader;
-
-    gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-            x, y,
-            x + w, y,
-            x, y + h,
-            x + w, y + h
-        ]),
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vPosition,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vPosition);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        Float32Array.from([
-            0, 0,
-            1, 0,
-            0, 1,
-            1, 1
-        ]),
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vTexCoord,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-            ...col,
-            ...col,
-            ...col,
-            ...col
-        ]),
-        gl.STATIC_DRAW
-    );
-    gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vColor,
-        4,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
-
-    gl.useProgram(shaderInfo.program);
-
-    var viewport = this.viewport;
-    var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
-
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.uProjection, false, mat);
-    gl.uniform1i(shaderInfo.uniformLocations.uTexture, 0);
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    // :/
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vPsition);
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
-}
-
 render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
     var width = glFonts.GetTextWidth(fontName, height, text);
 
@@ -379,14 +295,13 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vPosition,
+        shaderInfo.vPosition,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vPosition);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
@@ -395,14 +310,13 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vTexCoord,
+        shaderInfo.vTexCoord,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
     gl.bufferData(
@@ -411,28 +325,23 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vColor,
+        shaderInfo.vColor,
         4,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
 
     gl.useProgram(shaderInfo.program);
 
     var viewport = this.viewport;
     var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.uProjection, false, mat);
-    gl.uniform1i(shaderInfo.uniformLocations.uTexture, 0);
+    gl.uniformMatrix3fv(shaderInfo.uProjection, false, mat);
+    gl.uniform1i(shaderInfo.uTexture, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
-
-    // :/
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vPosition);
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
 render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
@@ -452,14 +361,13 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vPosition,
+        shaderInfo.vPosition,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vPosition);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
@@ -473,14 +381,13 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vTexCoord,
+        shaderInfo.vTexCoord,
         2,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
     gl.bufferData(
@@ -494,27 +401,23 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         gl.STATIC_DRAW
     );
     gl.vertexAttribPointer(
-        shaderInfo.attribLocations.vColor,
+        shaderInfo.vColor,
         4,
         gl.FLOAT,
         false,
         0,
         0
     );
-    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
 
     gl.useProgram(shaderInfo.program);
 
     var viewport = this.viewport;
     var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.uProjection, false, mat);
-    gl.uniform1i(shaderInfo.uniformLocations.uTexture, 0);
+    gl.uniformMatrix3fv(shaderInfo.uProjection, false, mat);
+    gl.uniform1i(shaderInfo.uTexture, 0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
-
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vPosition);
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
 render.RenderItem = function RenderItem(obj) {
@@ -550,7 +453,19 @@ render.AdvanceFrame = function AdvanceFrame() {
 
         switch (obj.type) {
             case "DrawRect":
-                this.RealDrawRect(obj.left, obj.top, obj.width, obj.height, obj.color);
+
+                this.DrawTexture(this.WhiteTex, {
+                    x1: obj.left,             y1: obj.top,
+                    x2: obj.left,             y2: obj.top + obj.height,
+                    x3: obj.left + obj.width, y3: obj.top + obj.height,
+                    x4: obj.left + obj.width, y4: obj.top
+                }, {
+                    s1: 0, t1: 0,
+                    s2: 1, t2: 0,
+                    s3: 0, t3: 1,
+                    s4: 1, t4: 1
+                }, obj.color);
+
                 break;
 
             case "DrawString":
