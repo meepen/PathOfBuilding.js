@@ -249,6 +249,9 @@ render.RunThread = function RunThread() {
 }
 
 render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
+    // TODO: Until strings are in the buffer, we have to always flush here
+    this.Flush();
+
     var width = glFonts.GetTextWidth(fontName, height, text);
 
     switch (align)
@@ -283,7 +286,7 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     var shaderInfo = this.Shader;
     var res = glFonts.BuildBuffers(fontName, height, text, x, y);
 
-    if ( res.VertCount == 0 )
+    if (res.VertCount == 0)
         return;
 
     gl.bindTexture(gl.TEXTURE_2D, res.Texture);
@@ -344,24 +347,31 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
 }
 
-render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
-    var shaderInfo = this.Shader;
+const BUFFER_SIZE = 1024;
 
-    gl.bindTexture(gl.TEXTURE_2D, tex);
+render.CurrentTexture = null;
+render.VertCount = 0;
+render.PositionBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
+render.TexCoordBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
+render.ColorBuffer = new Float32Array(4 * 6 * BUFFER_SIZE); 
+
+render.Flush = function Flush()
+{
+    if (this.VertCount == 0)
+        return;
+
+    gl.bindTexture(gl.TEXTURE_2D, this.CurrentTexture);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
     gl.bufferData(
         gl.ARRAY_BUFFER,
-        Float32Array.from([
-            pos.x1, pos.y1,
-            pos.x2, pos.y2,
-            pos.x3, pos.y3,
-            pos.x4, pos.y4
-        ]),
-        gl.STATIC_DRAW
+        this.PositionBuffer,
+        gl.DYNAMIC_DRAW,
+        0,
+        this.VertCount * 2
     );
     gl.vertexAttribPointer(
-        shaderInfo.vPosition,
+        this.Shader.vPosition,
         2,
         gl.FLOAT,
         false,
@@ -372,16 +382,13 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
     gl.bufferData(
         gl.ARRAY_BUFFER,
-        Float32Array.from([
-            texPos.s1, texPos.t1,
-            texPos.s2, texPos.t2,
-            texPos.s3, texPos.t3,
-            texPos.s4, texPos.t4
-        ]),
-        gl.STATIC_DRAW
+        this.TexCoordBuffer,
+        gl.DYNAMIC_DRAW,
+        0,
+        this.VertCount * 2
     );
     gl.vertexAttribPointer(
-        shaderInfo.vTexCoord,
+        this.Shader.vTexCoord,
         2,
         gl.FLOAT,
         false,
@@ -392,16 +399,13 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
     gl.bufferData(
         gl.ARRAY_BUFFER,
-        new Float32Array([
-            ...color,
-            ...color,
-            ...color,
-            ...color
-        ]),
-        gl.STATIC_DRAW
+        this.ColorBuffer,
+        gl.DYNAMIC_DRAW,
+        0,
+        this.VertCount * 4
     );
     gl.vertexAttribPointer(
-        shaderInfo.vColor,
+        this.Shader.vColor,
         4,
         gl.FLOAT,
         false,
@@ -409,15 +413,63 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         0
     );
 
-    gl.useProgram(shaderInfo.program);
+    gl.useProgram(this.Shader.program);
 
-    var viewport = this.viewport;
-    var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
+    var projection = mat3.projection(mat3.create(), this.viewport.width, this.viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uProjection, false, mat);
-    gl.uniform1i(shaderInfo.uTexture, 0);
+    gl.uniformMatrix3fv(this.Shader.uProjection, false, projection);
+    gl.uniform1i(this.Shader.uTexture, 0);
 
-    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+    gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
+
+    this.VertCount = 0;
+
+}
+
+render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
+    if (tex != this.CurrentTexture)
+    {
+        this.Flush();
+        this.CurrentTexture = tex;
+    }
+
+    if (this.VertCount + 6 > BUFFER_SIZE)
+    {
+        this.Flush();
+    }
+
+    var positions = [
+        pos.x1, pos.y1,
+        pos.x2, pos.y2,
+        pos.x3, pos.y3,
+        pos.x1, pos.y1,
+        pos.x3, pos.y3,
+        pos.x4, pos.y4
+    ];
+
+    var texCoords = [
+        texPos.s1, texPos.t1,
+        texPos.s2, texPos.t2,
+        texPos.s3, texPos.t3,
+        texPos.s1, texPos.t1,
+        texPos.s3, texPos.t3,
+        texPos.s4, texPos.t4
+    ];
+
+    var colors = [
+        ...color,
+        ...color,
+        ...color,
+        ...color,
+        ...color,
+        ...color
+    ];
+
+    this.PositionBuffer.set(positions, this.VertCount * 2)
+    this.TexCoordBuffer.set(texCoords, this.VertCount * 2)
+    this.ColorBuffer.set(colors, this.VertCount * 4)
+
+    this.VertCount += 6;
 }
 
 render.RenderItem = function RenderItem(obj) {
@@ -473,6 +525,9 @@ render.AdvanceFrame = function AdvanceFrame() {
                 break;
 
             case "SetViewport":
+                // TODO: If we don't need to change projection, we don't need this flush
+                this.Flush();
+
                 if (obj.x !== null) {
                     viewport.x = obj.x;
                     viewport.y = canvas.height - obj.y - obj.height;
