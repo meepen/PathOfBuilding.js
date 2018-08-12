@@ -74,10 +74,24 @@ if (!gl) {
     throw new Error("doesn't support webgl2");
 }
 
+var stupidPos = gl.createBuffer();
+var stupidTexCoord = gl.createBuffer();
+var stupidColor = gl.createBuffer();
+
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 render.Initialize = function Initialize() {
+    var gl = this.gl;
+
+    {
+        this.WhiteTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+        var whiteRGBA = new Uint8Array([255, 255, 255, 255]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, whiteRGBA);
+    }
+
     return glFonts.Load( gl );
 }
 
@@ -172,17 +186,6 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
     `
 );
 
-render.basic = {
-    program: basic,
-    attribLocations: {
-        position: gl.getAttribLocation(basic, "position")
-    },
-    uniformLocations: {
-        projection: gl.getUniformLocation(basic, "projection"),
-        color: gl.getUniformLocation(basic, "color")
-    },
-};
-
 render.basicTexture = {
     program: basicTexture,
     attribLocations: {
@@ -267,11 +270,13 @@ render.RunThread = function RunThread() {
         throw new Error("unsupported render thread yield: " + lua.lua_tostring(this.luaThread, 1));
 }
 
-var rect = gl.createBuffer();
 render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     var gl = this.gl;
-    var shaderInfo = this.basic;
-    gl.bindBuffer(gl.ARRAY_BUFFER, rect);
+    var shaderInfo = this.basicTexture;
+
+    gl.bindTexture(gl.TEXTURE_2D, this.WhiteTex);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
     gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
@@ -282,8 +287,6 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
         ]),
         gl.STATIC_DRAW
     );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, rect);
     gl.vertexAttribPointer(
         shaderInfo.attribLocations.position,
         2,
@@ -294,24 +297,63 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
     );
     gl.enableVertexAttribArray(shaderInfo.attribLocations.position);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        Float32Array.from([
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 1
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vTexCoord,
+        2,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            ...col,
+            ...col,
+            ...col,
+            ...col
+        ]),
+        gl.STATIC_DRAW
+    );
+    gl.vertexAttribPointer(
+        shaderInfo.attribLocations.vColor,
+        4,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+    gl.enableVertexAttribArray(shaderInfo.attribLocations.vColor);
+
     gl.useProgram(shaderInfo.program);
 
     var viewport = this.viewport;
     var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
     gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
-    gl.uniform4fv(shaderInfo.uniformLocations.color, col);
+    gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // :/
     gl.disableVertexAttribArray(shaderInfo.attribLocations.position);
-    gl.disableVertexAttribArray(shaderInfo.attribLocations.color);
+    gl.disableVertexAttribArray(shaderInfo.attribLocations.vTexCoord);
 }
 
-var stupidPos = gl.createBuffer();
-var stupidTexCoord = gl.createBuffer();
-var stupidColor = gl.createBuffer();
 render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
     var width = glFonts.GetTextWidth(fontName, height, text);
 
