@@ -120,7 +120,7 @@ render.LoadShader = function LoadShader(type, source) {
 
 var basic = render.shaders["basic"] = render.InitShader(
     `#version 300 es
-        layout(location=0) in vec2 position;
+        in vec2 position;
         uniform mat3 projection;
         uniform vec2 offset;
 
@@ -143,7 +143,7 @@ var basic = render.shaders["basic"] = render.InitShader(
 
 var basicTexture = render.shaders["basicTexture"] = render.InitShader(
     `#version 300 es
-        layout(location=0) in vec2 position;
+        in vec2 position;
         in vec2 vTexCoord;
         in vec4 vColor;
         uniform mat3 projection;
