@@ -202,6 +202,7 @@ canvas.style.width  = '128px';
 canvas.style.height = '72px';
 */
 
+render.imageLookup = {};
 render.images = [];
 render.queue = [];
 
@@ -740,6 +741,11 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
 }
 
 render.LoadImage = function LoadImage(name) {
+    if (this.imageLookup.hasOwnProperty(name))
+    {
+        return this.imageLookup[name];
+    }
+
     var obj = {
         width: 0,
         height: 0,
@@ -784,7 +790,9 @@ render.LoadImage = function LoadImage(name) {
 
     obj.image.src = `http://144.202.109.121:9000/?url=${localStorage[name]}`;
 
-    return this.images.push(obj) - 1;
+    var idx = this.images.push(obj) - 1;
+    this.imageLookup[name] = idx;
+    return idx;
 }
 
 render.IsImageLoaded = function IsImageLoaded(idx) {

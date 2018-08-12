@@ -197,7 +197,17 @@ static int GetFileData(lua_State *L) {
 	return 1;
 }
 
-static int LoadImageCont(lua_State* L, int status, lua_KContext ctx)
+static int LoadImage(lua_State *L)
+{
+	int idx = EM_ASM_INT(({
+		return render.LoadImage(Pointer_stringify($0));
+	}), lua_tostring(L, 1));
+
+	lua_pushnumber(L, idx);
+	return 1;
+}
+
+static int ImageSizeCont(lua_State *L, int status, lua_KContext ctx)
 {
 	int idx = (int) ctx;
 
@@ -215,24 +225,22 @@ static int LoadImageCont(lua_State* L, int status, lua_KContext ctx)
 			return render.ImageHeight($0);
 		}), idx);
 
-		lua_pushnumber(L, idx);
 		lua_pushnumber(L, width);
 		lua_pushnumber(L, height);
-		return 3;
+		return 2;
 	}
 
 	// Keep yielding until the image has loaded
-	lua_pushstring(L, "LoadImage!");
-	return lua_yieldk(L, 1, ctx, LoadImageCont);
+	lua_pushstring(L, "ImageSize!");
+	return lua_yieldk(L, 1, ctx, ImageSizeCont);
 }
 
-static int LoadImage(lua_State *L) {
-	int idx = EM_ASM_INT(({
-		return render.LoadImage(Pointer_stringify($0));
-	}), lua_tostring(L, 1));
+static int ImageSize(lua_State *L)
+{
+	int idx = luaL_checknumber(L, 1);
 
-	lua_pushstring(L, "LoadImage!");
-	return lua_yieldk(L, 1, (lua_KContext) idx, LoadImageCont);
+	lua_pushstring(L, "ImageSize!");
+	return lua_yieldk(L, 1, (lua_KContext) idx, ImageSizeCont);
 }
 
 static int LoadFileCont(lua_State* L, int status, lua_KContext ctx)
@@ -299,6 +307,7 @@ struct reg emscripten[] = {
 	{"AppendFile", &AppendFile},
 	{"SetFileData", &SetFileData},
 	{"LoadImage", &LoadImage},
+	{"ImageSize", &ImageSize},
 	{"LoadFile", &LoadFile},
 	{"IsKeyDown", &IsKeyDown},
 	{0, 0}
