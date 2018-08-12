@@ -3,19 +3,17 @@ var render = window.render = {
     subLayer: 0,
     shaders: {},
     events: [],
-    renderState: {
-        viewport: {
-            x: 0,
-            y: 0,
-            width: 1280,
-            height: 720
-        }
+    viewport: {
+        x: 0,
+        y: 0,
+        width: 1280,
+        height: 720
     }
 };
 
 var canvas = window.canvas = render.canvas = document.getElementById("gl");
-canvas.width = render.renderState.viewport.width;
-canvas.height = render.renderState.viewport.height;
+canvas.width = render.viewport.width;
+canvas.height = render.viewport.height;
 
 canvas.addEventListener("mousemove", function mousemove(x) {
     render.cx = x.clientX;
@@ -122,10 +120,9 @@ var basic = render.shaders["basic"] = render.InitShader(
     `#version 300 es
         in vec2 position;
         uniform mat3 projection;
-        uniform vec2 offset;
 
         void main() {
-            gl_Position = vec4((projection * vec3(position + offset, 1)).xy, 0, 1);
+            gl_Position = vec4((projection * vec3(position, 1)).xy, 0, 1);
         }
     `,
     `#version 300 es
@@ -147,7 +144,6 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
         in vec2 vTexCoord;
         in vec4 vColor;
         uniform mat3 projection;
-        uniform vec2 offset;
 
         out vec2 fTexCoord;
         out vec4 fColor;
@@ -155,7 +151,7 @@ var basicTexture = render.shaders["basicTexture"] = render.InitShader(
         void main() {
             fTexCoord = vTexCoord;
             fColor = vColor;
-            gl_Position = vec4((projection * vec3(position + offset, 1)).xy, 0, 1);
+            gl_Position = vec4((projection * vec3(position, 1)).xy, 0, 1);
         }
     `,
     `#version 300 es
@@ -182,7 +178,6 @@ render.basic = {
         position: gl.getAttribLocation(basic, "position")
     },
     uniformLocations: {
-        offset: gl.getUniformLocation(basic, "offset"),
         projection: gl.getUniformLocation(basic, "projection"),
         color: gl.getUniformLocation(basic, "color")
     },
@@ -197,7 +192,6 @@ render.basicTexture = {
     },
     uniformLocations: {
         texSampler: gl.getUniformLocation(basicTexture, "texSampler"),
-        offset: gl.getUniformLocation(basicTexture, "offset"),
         projection: gl.getUniformLocation(basicTexture, "projection")
     },
 };
@@ -301,10 +295,10 @@ render.RealDrawRect = function RealDrawRect(x, y, w, h, col) {
 
     gl.useProgram(shaderInfo.program);
 
-    var viewport = this.renderState.viewport;
-    gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
+    var viewport = this.viewport;
+    var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat3.projection(mat3.create(), canvas.width, canvas.height));
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
     gl.uniform4fv(shaderInfo.uniformLocations.color, col);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -407,10 +401,10 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
 
     gl.useProgram(shaderInfo.program);
 
-    var viewport = this.renderState.viewport;
-    gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
+    var viewport = this.viewport;
+    var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat3.projection(mat3.create(), canvas.width, canvas.height));
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
@@ -490,10 +484,10 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
 
     gl.useProgram(shaderInfo.program);
 
-    var viewport = this.renderState.viewport;
-    gl.uniform2fv(shaderInfo.uniformLocations.offset, [viewport.x, viewport.y]);
+    var viewport = this.viewport;
+    var mat = mat3.projection(mat3.create(), viewport.width, viewport.height);
 
-    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat3.projection(mat3.create(), canvas.width, canvas.height));
+    gl.uniformMatrix3fv(shaderInfo.uniformLocations.projection, false, mat);
     gl.uniform1i(shaderInfo.uniformLocations.texSampler, 0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
@@ -528,11 +522,7 @@ render.AdvanceFrame = function AdvanceFrame() {
     this.last_queue = queue.slice()
     queue.sort(sorter)
 
-    var viewport = this.renderState.viewport;
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = canvas.width;
-    viewport.height = canvas.height;
+    var viewport = this.viewport;
 
     for (; queue.length;) {
         var obj = queue.pop();
@@ -549,7 +539,7 @@ render.AdvanceFrame = function AdvanceFrame() {
             case "SetViewport":
                 if (obj.x !== null) {
                     viewport.x = obj.x;
-                    viewport.y = obj.y;
+                    viewport.y = canvas.height - obj.y - obj.height;
                     viewport.width = obj.width;
                     viewport.height = obj.height;
                 }
@@ -559,6 +549,7 @@ render.AdvanceFrame = function AdvanceFrame() {
                     viewport.width = canvas.width;
                     viewport.height = canvas.height;
                 }
+                gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
                 break;
 
             case "DrawImage":
@@ -609,32 +600,6 @@ render.AdvanceFrame = function AdvanceFrame() {
 
                 break;
 
-/*
-
-            case "SetViewport":
-                var textBaseline = ctx.textBaseline;
-                var fillStyle = ctx.fillStyle;
-                var textAlign = ctx.textAlign;
-                var font = ctx.font;
-                offset_x = 0;
-                offset_y = 0;
-                ctx.restore();
-                ctx.save();
-                if (obj.x !== null) {
-                    ctx.beginPath();
-                    ctx.rect(obj.x, obj.y, obj.width, obj.height);
-                    ctx.clip();
-
-                    offset_x = obj.x;
-                    offset_y = obj.y;
-
-                    ctx.textBaseline = textBaseline;
-                    ctx.fillStyle = fillStyle;
-                    ctx.textAlign = textAlign;
-                    ctx.font = font;
-                }
-                break;
-*/
             default:
                 //console.log("not implemented: " + obj.type);
         }
