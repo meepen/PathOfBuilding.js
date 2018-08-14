@@ -206,8 +206,8 @@ static int GetFileData(lua_State *L) {
 static int LoadImage(lua_State *L)
 {
 	int idx = EM_ASM_INT(({
-		return render.LoadImage(Pointer_stringify($0));
-	}), lua_tostring(L, 1));
+		return render.LoadImage(Pointer_stringify($0, $1));
+	}), lua_tostring(L, 1), lua_tostring(L, 2));
 
 	lua_pushnumber(L, idx);
 	return 1;

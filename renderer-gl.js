@@ -808,7 +808,7 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     });
 }
 
-render.LoadImage = function LoadImage(name) {
+render.LoadImage = function LoadImage(name, mode) {
     if (this.imageLookup.hasOwnProperty(name))
     {
         return this.imageLookup[name];
@@ -832,9 +832,17 @@ render.LoadImage = function LoadImage(name) {
         gl.bindTexture(gl.TEXTURE_2D, obj.texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 
-        // Might not be power-of-2. We don't care for now, but this might hurt us
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        if (mode == "CLAMP")
+        {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        }
+        else
+        {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        }
+
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
         obj.width = img.width;
