@@ -187,7 +187,7 @@ var Shader = render.shaders["Shader"] = render.InitShader(
         in vec4 fColor;
         flat in int fTexture;
 
-        uniform sampler2D uTextures[8];
+        uniform sampler2D uTextures[16];
 
         out vec4 FragColor;
 
@@ -208,6 +208,22 @@ var Shader = render.shaders["Shader"] = render.InitShader(
                 FragColor = texture(uTextures[6], fTexCoord);
             else if (fTexture == 7)
                 FragColor = texture(uTextures[7], fTexCoord);
+            else if (fTexture == 8)
+                FragColor = texture(uTextures[8], fTexCoord);
+            else if (fTexture == 9)
+                FragColor = texture(uTextures[9], fTexCoord);
+            else if (fTexture == 10)
+                FragColor = texture(uTextures[10], fTexCoord);
+            else if (fTexture == 11)
+                FragColor = texture(uTextures[11], fTexCoord);
+            else if (fTexture == 12)
+                FragColor = texture(uTextures[12], fTexCoord);
+            else if (fTexture == 13)
+                FragColor = texture(uTextures[13], fTexCoord);
+            else if (fTexture == 14)
+                FragColor = texture(uTextures[14], fTexCoord);
+            else if (fTexture == 15)
+                FragColor = texture(uTextures[15], fTexCoord);
 
             FragColor.rgb *= FragColor.a;
             FragColor *= fColor;
@@ -229,6 +245,14 @@ render.Shader = {
     uTextures5:  gl.getUniformLocation(Shader, "uTextures[5]"),
     uTextures6:  gl.getUniformLocation(Shader, "uTextures[6]"),
     uTextures7:  gl.getUniformLocation(Shader, "uTextures[7]"),
+    uTextures8:  gl.getUniformLocation(Shader, "uTextures[8]"),
+    uTextures9:  gl.getUniformLocation(Shader, "uTextures[9]"),
+    uTextures10:  gl.getUniformLocation(Shader, "uTextures[10]"),
+    uTextures11:  gl.getUniformLocation(Shader, "uTextures[11]"),
+    uTextures12:  gl.getUniformLocation(Shader, "uTextures[12]"),
+    uTextures13:  gl.getUniformLocation(Shader, "uTextures[13]"),
+    uTextures14:  gl.getUniformLocation(Shader, "uTextures[14]"),
+    uTextures15:  gl.getUniformLocation(Shader, "uTextures[15]"),
     uProjection: gl.getUniformLocation(Shader, "uProjection")
 };
 
@@ -248,6 +272,14 @@ render.Shader = {
     gl.uniform1i(render.Shader.uTextures5, 5);
     gl.uniform1i(render.Shader.uTextures6, 6);
     gl.uniform1i(render.Shader.uTextures7, 7);
+    gl.uniform1i(render.Shader.uTextures8, 8);
+    gl.uniform1i(render.Shader.uTextures9, 9);
+    gl.uniform1i(render.Shader.uTextures10, 10);
+    gl.uniform1i(render.Shader.uTextures11, 11);
+    gl.uniform1i(render.Shader.uTextures12, 12);
+    gl.uniform1i(render.Shader.uTextures13, 13);
+    gl.uniform1i(render.Shader.uTextures14, 14);
+    gl.uniform1i(render.Shader.uTextures15, 15);
     gl.uniformMatrix3fv(render.Shader.uProjection, false, mat3.projection(mat3.create(), render.viewport.width, render.viewport.height));
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
@@ -471,7 +503,7 @@ render.Draw = function Draw(tex, positions, texCoords, colors, vertCount) {
 
     var textureId = this.CurrentTextures.indexOf(tex);
 
-    if (textureId == -1 && this.CurrentTextures.length >= 8)
+    if (textureId == -1 && this.CurrentTextures.length >= 16)
     {
         this.Flush("Textures Full");
     }
