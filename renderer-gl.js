@@ -1,5 +1,5 @@
 var render = window.render = {
-    color: [1, 1, 1, 1],
+    color: 0,
     layer: -1,
     layerObj: null,
     subLayer: -1,
@@ -306,8 +306,8 @@ render.Shader = {
     gl.vertexAttribPointer(
         render.Shader.vColor,
         4,
-        gl.FLOAT,
-        false,
+        gl.UNSIGNED_BYTE,
+        true,
         0,
         0
     );
@@ -435,7 +435,7 @@ render.CurrentTextures = [];
 render.VertCount = 0;
 render.PositionBuffer = new Float32Array(2 * MAX_VERTS);
 render.TexCoordBuffer = new Float32Array(2 * MAX_VERTS);
-render.ColorBuffer = new Float32Array(4 * MAX_VERTS);
+render.ColorBuffer = new Uint32Array(1 * MAX_VERTS);
 render.TextureBuffer = new Int8Array(1 * MAX_VERTS);
 
 render.Flush = function Flush(reason)
@@ -475,7 +475,7 @@ render.Flush = function Flush(reason)
         this.ColorBuffer,
         gl.DYNAMIC_DRAW,
         0,
-        this.VertCount * 4
+        this.VertCount
     );
 
     gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexture);
@@ -515,7 +515,7 @@ render.Draw = function Draw(tex, positions, texCoords, colors, vertCount) {
 
     this.PositionBuffer.set(positions, this.VertCount * 2);
     this.TexCoordBuffer.set(texCoords, this.VertCount * 2);
-    this.ColorBuffer.set(colors, this.VertCount * 4);
+    this.ColorBuffer.set(colors, this.VertCount);
 
     for ( var i = 0; i < vertCount; i++ )
     {
@@ -605,16 +605,16 @@ render.AdvanceFrame = function AdvanceFrame() {
 }
 
 var annoying_shit = [
-    { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-    { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
-    { r: 0.0, g: 1.0, b: 0.0, a: 1.0 },
-    { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
-    { r: 1.0, g: 1.0, b: 0.0, a: 1.0 },
-    { r: 1.0, g: 0.0, b: 1.0, a: 1.0 },
-    { r: 0.0, g: 1.0, b: 1.0, a: 1.0 },
-    { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-    { r: 0.69999999, g: 0.69999999, b: 0.69999999, a: 1.0 },
-    { r: 0.40000001, g: 0.40000001, b: 0.40000001, a: 1.0 },
+    { r: 0, g: 0, b: 0, a: 255 },
+    { r: 255, g: 0, b: 0, a: 255 },
+    { r: 0, g: 255, b: 0, a: 255 },
+    { r: 0, g: 0, b: 255, a: 255 },
+    { r: 255, g: 255, b: 0, a: 255 },
+    { r: 255, g: 0, b: 255, a: 255 },
+    { r: 0, g: 255, b: 255, a: 255 },
+    { r: 255, g: 255, b: 255, a: 255 },
+    { r: 178, g: 178, b: 178, a: 255 },
+    { r: 102, g: 102, b: 102, a: 255 },
 ]
 
 render.ColorFromString = function ColorFromString(r, i) {
@@ -625,9 +625,9 @@ render.ColorFromString = function ColorFromString(r, i) {
     }
     var len
     if (r[1 + i] == 'x') {
-        b = parseInt(r.slice(6 + i, 8 + i), 16) / 255;
-        g = parseInt(r.slice(4 + i, 6 + i), 16) / 255;
-        r = parseInt(r.slice(2 + i, 4 + i), 16) / 255;
+        b = parseInt(r.slice(6 + i, 8 + i), 16);
+        g = parseInt(r.slice(4 + i, 6 + i), 16);
+        r = parseInt(r.slice(2 + i, 4 + i), 16);
         len = 8;
     }
     else {
@@ -681,15 +681,14 @@ render.SetViewport = function SetViewport(x, y, width, height) {
     });
 }
 
-render.SetDrawColor = function SetDrawColor(r, g, b, a) {
-    if (typeof r == "string") {
-        var col = render.ColorFromString(r);
-        r = col.r, g = col.g, b = col.b, a = col.a;
+render.SetDrawColor = function SetDrawColor(color) {
+    if (typeof color == "string")
+    {
+        rgba = render.ColorFromString(color);
+        color = ((rgba.a << 24) | (rgba.b << 16) | (rgba.g << 8) | rgba.r);
     }
-    this.color[0] = r;
-    this.color[1] = g;
-    this.color[2] = b;
-    this.color[3] = a;
+
+    this.color = color >>> 0;
 }
 
 render.DrawRect = function DrawRect(left, top, width, height) {
@@ -713,13 +712,13 @@ render.DrawRect = function DrawRect(left, top, width, height) {
             1, 1,
         ],
         Colors: [
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-        ],        
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+        ],
     });
 }
 
@@ -745,12 +744,12 @@ render.DrawImage = function DrawImage(imgHandle, left, top, width, height, u1, v
             u2, v1,
         ],
         Colors: [
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+            this.color,
         ],
     });
 }
@@ -777,12 +776,12 @@ render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3,
             s4, t4,
         ],
         Colors: [
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
-            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+            this.color,
+            this.color,
         ],
     });
 }

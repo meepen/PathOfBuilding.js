@@ -2421,16 +2421,16 @@ FONTS["VAR"]["32"] = {
 };
 
 var colorLookup = [
-    { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-    { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
-    { r: 0.0, g: 1.0, b: 0.0, a: 1.0 },
-    { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
-    { r: 1.0, g: 1.0, b: 0.0, a: 1.0 },
-    { r: 1.0, g: 0.0, b: 1.0, a: 1.0 },
-    { r: 0.0, g: 1.0, b: 1.0, a: 1.0 },
-    { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-    { r: 0.69999999, g: 0.69999999, b: 0.69999999, a: 1.0 },
-    { r: 0.40000001, g: 0.40000001, b: 0.40000001, a: 1.0 },
+    { r: 0, g: 0, b: 0, a: 255 },
+    { r: 255, g: 0, b: 0, a: 255 },
+    { r: 0, g: 255, b: 0, a: 255 },
+    { r: 0, g: 0, b: 255, a: 255 },
+    { r: 255, g: 255, b: 0, a: 255 },
+    { r: 255, g: 0, b: 255, a: 255 },
+    { r: 0, g: 255, b: 255, a: 255 },
+    { r: 255, g: 255, b: 255, a: 255 },
+    { r: 178, g: 178, b: 178, a: 255 },
+    { r: 102, g: 102, b: 102, a: 255 },
 ]
 
 var ColorFromString = function ColorFromString(r, i) {
@@ -2441,9 +2441,9 @@ var ColorFromString = function ColorFromString(r, i) {
     }
     var len
     if (r[1 + i] == 'x') {
-        b = parseInt(r.slice(6 + i, 8 + i), 16) / 255;
-        g = parseInt(r.slice(4 + i, 6 + i), 16) / 255;
-        r = parseInt(r.slice(2 + i, 4 + i), 16) / 255;
+        b = parseInt(r.slice(6 + i, 8 + i), 16);
+        g = parseInt(r.slice(4 + i, 6 + i), 16);
+        r = parseInt(r.slice(2 + i, 4 + i), 16);
         len = 8;
     }
     else {
@@ -2594,8 +2594,7 @@ glFonts.GetTextWidth = function GetTextWidth(fontName, height, text)
 //
 var positions = new Float32Array(256 * 12);
 var texCoords = new Float32Array(256 * 12);
-var colors = new Float32Array(256 * 24);
-var currentColor = [1, 1, 1, 1];
+var colors = new Uint32Array(256 * 6);
 
 //
 // Returns arrays of vertex-positions & texture-coordinates needed to render the given text
@@ -2614,10 +2613,7 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 	var vertCount = 0;
 
 	var baseX = baseX;
-	currentColor[0] = 1;
-	currentColor[1] = 1;
-	currentColor[2] = 1;
-	currentColor[3] = 1;
+	var currentColor = 0xFFFFFFFF;
 
 	var parts = StringToFormattedArray(text);
 	var k = 0;
@@ -2628,10 +2624,7 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 
 		if (typeof part != "string")
 		{
-			currentColor[0] = part.r;
-			currentColor[1] = part.g;
-			currentColor[2] = part.b;
-			currentColor[3] = part.a;
+			currentColor = ((part.a << 24) | (part.b << 16) | (part.g << 8) | part.r) >>> 0;
 			continue;
 		}
 
@@ -2669,21 +2662,21 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 			positions[l * 12 + 1] = pyTL;
 			texCoords[l * 12 + 0] = txTL;
 			texCoords[l * 12 + 1] = tyTL;
-			colors.set(currentColor, l * 24 + 0);
+			colors[l * 6] = currentColor;
 
 			// BL
 			positions[l * 12 + 2] = pxBL;
 			positions[l * 12 + 3] = pyBL;
 			texCoords[l * 12 + 2] = txBL;
 			texCoords[l * 12 + 3] = tyBL;
-			colors.set(currentColor, l * 24 + 4);
+			colors[l * 6 + 1] = currentColor;
 
 			// TR
 			positions[l * 12 + 4] = pxTR;
 			positions[l * 12 + 5] = pyTR;
 			texCoords[l * 12 + 4] = txTR;
 			texCoords[l * 12 + 5] = tyTR;
-			colors.set(currentColor, l * 24 + 8);
+			colors[l * 6 + 2] = currentColor;
 
 			/// Triangle #2
 			// TR
@@ -2691,21 +2684,21 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 			positions[l * 12 + 7] = pyTR;
 			texCoords[l * 12 + 6] = txTR;
 			texCoords[l * 12 + 7] = tyTR;
-			colors.set(currentColor, l * 24 + 12);
+			colors[l * 6 + 3] = currentColor;
 
 			// BL
 			positions[l * 12 + 8] = pxBL;
 			positions[l * 12 + 9] = pyBL;
 			texCoords[l * 12 + 8] = txBL;
 			texCoords[l * 12 + 9] = tyBL;
-			colors.set(currentColor, l * 24 + 16);
+			colors[l * 6 + 4] = currentColor;
 
 			// BR
 			positions[l * 12 + 10] = pxBR;
 			positions[l * 12 + 11] = pyBR;
 			texCoords[l * 12 + 10] = txBR;
 			texCoords[l * 12 + 11] = tyBR;
-			colors.set(currentColor, l * 24 + 20);
+			colors[l * 6 + 5] = currentColor;
 
 			baseX += glyph[2] + glyph[4];
 

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 #include <emscripten.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -19,21 +20,26 @@ static int SetDrawColor(lua_State *L) {
 		EM_ASM_({
 			render.SetDrawColor($0);
 		}, lua_tostring(L, 1));
+		return 0;
 	}
-	else {
-		float colors[4] = { 0, 0, 0, 1 };
-		int top = lua_gettop(L);
-		if (top > 4)
-			top = 4;
-		for (int i = 0; i < top; i++) {
-			if (lua_type(L, i + 1) == LUA_TNUMBER)
-				colors[i] = lua_tonumber(L, i + 1);
-		}
 
-		EM_ASM_(({
-			render.SetDrawColor.apply(render, arguments);
-		}), colors[0], colors[1], colors[2], colors[3]);
+	uint8_t rgba[4] = { 0, 0, 0, 255 };
+	int top = lua_gettop(L);
+	if (top > 4) top = 4;
+
+	for (int i = 0; i < top; i++) {
+		if (lua_type(L, i + 1) != LUA_TNUMBER)
+			continue;
+
+		float fl = fmax(0.f, lua_tonumber(L, i + 1));
+		rgba[i] = (uint8_t) floorf(fl >= 1.f ? 255 : fl * 256.f);
 	}
+
+	uint32_t color = (rgba[3] << 24) | (rgba[2] << 16) | (rgba[1] << 8) | rgba[0];
+
+	EM_ASM_(({
+		render.SetDrawColor($0);
+	}), color);
 	return 0;
 }
 
