@@ -429,14 +429,14 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
     this.Draw(res.Texture, res.Positions, res.TexCoords, res.Colors, res.VertCount);
 }
 
-const BUFFER_SIZE = 32768;
+const MAX_VERTS = 32768;
 
 render.CurrentTextures = [];
 render.VertCount = 0;
-render.PositionBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
-render.TexCoordBuffer = new Float32Array(2 * 6 * BUFFER_SIZE);
-render.ColorBuffer = new Float32Array(4 * 6 * BUFFER_SIZE);
-render.TextureBuffer = new Int8Array(1 * 6 * BUFFER_SIZE);
+render.PositionBuffer = new Float32Array(2 * MAX_VERTS);
+render.TexCoordBuffer = new Float32Array(2 * MAX_VERTS);
+render.ColorBuffer = new Float32Array(4 * MAX_VERTS);
+render.TextureBuffer = new Int8Array(1 * MAX_VERTS);
 
 render.Flush = function Flush(reason)
 {
@@ -496,7 +496,7 @@ render.Flush = function Flush(reason)
 }
 
 render.Draw = function Draw(tex, positions, texCoords, colors, vertCount) {
-    if (this.VertCount + vertCount > BUFFER_SIZE)
+    if (this.VertCount + vertCount > MAX_VERTS)
     {
         this.Flush("Buffer Full");
     }
