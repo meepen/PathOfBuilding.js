@@ -1,6 +1,9 @@
 var render = window.render = {
-    layer: 0,
-    subLayer: 0,
+    layer: -1,
+    layerObj: null,
+    subLayer: -1,
+    subLayerObj: undefined,
+    layers: [],
     shaders: {},
     events: [],
     viewport: {
@@ -83,6 +86,8 @@ gl.enable(gl.BLEND);
 gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 render.Initialize = function Initialize() {
+    this.SetDrawLayer(0, 0);
+
     var gl = this.gl;
 
     {
@@ -293,13 +298,9 @@ canvas.style.height = '72px';
 
 render.imageLookup = {};
 render.images = [];
-render.queue = [];
 
 render.Insert = function Insert(obj) {
-    obj.layer = this.layer;
-    obj.subLayer = this.subLayer;
-    obj.count = ++this.renderCount;
-    render.queue.push(obj);
+    this.subLayerObj.push(obj);
 }
 
 function sorter(a, b) {
@@ -566,10 +567,8 @@ render.RenderItem = function RenderItem(obj) {
 render.AdvanceFrame = function AdvanceFrame() {
     var gl = this.gl
     this.renderCount = 0;
-    this.queue = [];
 
-    this.layer = 0;
-    this.subLayer = 0;
+    this.SetDrawLayer(0, 0);
 
     // call into lua
     this.RunThread(L);
@@ -581,16 +580,12 @@ render.AdvanceFrame = function AdvanceFrame() {
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var queue = this.queue;
-    this.last_queue = queue.slice()
-    queue.sort(sorter)
-
     var viewport = this.viewport;
 
-    for (; queue.length;) {
-        var obj = queue.pop();
-
-        switch (obj.type) {
+    this.layers.forEach( subLayers => {
+    subLayers.forEach( subLayer => {
+    subLayer.forEach( obj => {
+       switch (obj.type) {
             case "DrawRect":
 
                 this.DrawTexture(this.WhiteTex, {
@@ -683,7 +678,10 @@ render.AdvanceFrame = function AdvanceFrame() {
             default:
                 //console.log("not implemented: " + obj.type);
         }
-    }
+    } );
+        subLayer.length = 0;
+    } );
+    } );
 
     this.Flush("Frame Ended");
 }
@@ -730,12 +728,29 @@ render.ColorFromString = function ColorFromString(r, i) {
 }
 
 render.SetDrawLayer = function(layer, subLayer) {
-    if (layer !== null)
+    if (layer !== null && layer != this.layer)
+    {
         this.layer = layer;
+
+        if ( !this.layers[this.layer] )
+            this.layerObj = this.layers[this.layer] = [];
+        else
+            this.layerObj = this.layers[this.layer];
+    }
+
     if (subLayer !== null)
+    {
         this.subLayer = subLayer;
+    }
     else
+    {
         this.subLayer = 0;
+    }
+
+    if ( !this.layerObj[this.subLayer] )
+        this.subLayerObj = this.layerObj[this.subLayer] = [];
+    else
+        this.subLayerObj = this.layerObj[this.subLayer];
 }
 
 render.SetViewport = function SetViewport(x, y, width, height) {
