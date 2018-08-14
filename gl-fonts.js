@@ -2590,6 +2590,14 @@ glFonts.GetTextWidth = function GetTextWidth(fontName, height, text)
 }
 
 //
+// Worst-Case preallocations
+//
+var positions = new Float32Array(256 * 12);
+var texCoords = new Float32Array(256 * 12);
+var colors = new Float32Array(256 * 24);
+var currentColor = [1, 1, 1, 1];
+
+//
 // Returns arrays of vertex-positions & texture-coordinates needed to render the given text
 //
 glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, baseY)
@@ -2603,14 +2611,13 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 	var font = FONTS[fontName][height];
 	var glyphs = getGlyphs(fontName, height);
 
-	// We might not use the entire arrays depending on our color parts
-	var positions = new Float32Array(text.length * 12);
-	var texCoords = new Float32Array(text.length * 12);
-	var colors = new Float32Array(text.length * 24);
 	var vertCount = 0;
 
 	var baseX = baseX;
-	var currentColor = [1, 1, 1, 1];
+	currentColor[0] = 1;
+	currentColor[1] = 1;
+	currentColor[2] = 1;
+	currentColor[3] = 1;
 
 	var parts = StringToFormattedArray(text);
 	var k = 0;
@@ -2621,7 +2628,10 @@ glFonts.BuildBuffers = function GetTextBuffers(fontName, height, text, baseX, ba
 
 		if (typeof part != "string")
 		{
-			currentColor = [part.r, part.g, part.b, part.a];
+			currentColor[0] = part.r;
+			currentColor[1] = part.g;
+			currentColor[2] = part.b;
+			currentColor[3] = part.a;
 			continue;
 		}
 

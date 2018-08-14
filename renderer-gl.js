@@ -1,4 +1,5 @@
 var render = window.render = {
+    color: [1, 1, 1, 1],
     layer: -1,
     layerObj: null,
     subLayer: -1,
@@ -358,9 +359,6 @@ render.RunThread = function RunThread() {
 }
 
 render.RealDrawString = function RealDrawString(x, y, fontName, height, text, align) {
-    // TODO: Until strings are in the buffer, we have to always flush here
-    this.Flush("Drawing String");
-
     var width = glFonts.GetTextWidth(fontName, height, text);
 
     switch (align)
@@ -391,45 +389,12 @@ render.RealDrawString = function RealDrawString(x, y, fontName, height, text, al
             break;
     }
 
-    var gl = this.gl;
-    var shaderInfo = this.Shader;
     var res = glFonts.BuildBuffers(fontName, height, text, x, y);
 
     if (res.VertCount == 0)
         return;
 
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, res.Texture);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidPos);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        res.Positions,
-        gl.DYNAMIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexCoord);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        res.TexCoords,
-        gl.DYNAMIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidColor);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        res.Colors,
-        gl.DYNAMIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, stupidTexture);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        Int8Array.from(Array(res.VertCount).fill(0)),
-        gl.DYNAMIC_DRAW
-    );
-
-    gl.drawArrays(gl.TRIANGLES, 0, res.VertCount);
+    this.Draw(res.Texture, res.Positions, res.TexCoords, res.Colors, res.VertCount);
 }
 
 const BUFFER_SIZE = 32768;
@@ -498,8 +463,8 @@ render.Flush = function Flush(reason)
     this.CurrentTextures = [];
 }
 
-render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
-    if (this.VertCount + 6 > BUFFER_SIZE)
+render.Draw = function Draw(tex, positions, texCoords, colors, vertCount) {
+    if (this.VertCount + vertCount > BUFFER_SIZE)
     {
         this.Flush("Buffer Full");
     }
@@ -516,48 +481,16 @@ render.DrawTexture = function DrawTexture(tex, pos, texPos, color) {
         textureId = this.CurrentTextures.push(tex) -1;
     }
 
-    var positions = [
-        pos.x1, pos.y1,
-        pos.x2, pos.y2,
-        pos.x3, pos.y3,
-        pos.x1, pos.y1,
-        pos.x3, pos.y3,
-        pos.x4, pos.y4
-    ];
+    this.PositionBuffer.set(positions, this.VertCount * 2);
+    this.TexCoordBuffer.set(texCoords, this.VertCount * 2);
+    this.ColorBuffer.set(colors, this.VertCount * 4);
 
-    var texCoords = [
-        texPos.s1, texPos.t1,
-        texPos.s2, texPos.t2,
-        texPos.s3, texPos.t3,
-        texPos.s1, texPos.t1,
-        texPos.s3, texPos.t3,
-        texPos.s4, texPos.t4
-    ];
+    for ( var i = 0; i < vertCount; i++ )
+    {
+        this.TextureBuffer[this.VertCount + i] = textureId;
+    }
 
-    var colors = [
-        ...color,
-        ...color,
-        ...color,
-        ...color,
-        ...color,
-        ...color
-    ];
-
-    var textures = [
-        textureId,
-        textureId,
-        textureId,
-        textureId,
-        textureId,
-        textureId,
-    ];
-
-    this.PositionBuffer.set(positions, this.VertCount * 2)
-    this.TexCoordBuffer.set(texCoords, this.VertCount * 2)
-    this.ColorBuffer.set(colors, this.VertCount * 4)
-    this.TextureBuffer.set(textures, this.VertCount);
-
-    this.VertCount += 6;
+    this.VertCount += vertCount;
 }
 
 render.RenderItem = function RenderItem(obj) {
@@ -584,101 +517,54 @@ render.AdvanceFrame = function AdvanceFrame() {
 
     this.layers.forEach( subLayers => {
     subLayers.forEach( subLayer => {
-    subLayer.forEach( obj => {
-       switch (obj.type) {
-            case "DrawRect":
-
-                this.DrawTexture(this.WhiteTex, {
-                    x1: obj.left,             y1: obj.top,
-                    x2: obj.left,             y2: obj.top + obj.height,
-                    x3: obj.left + obj.width, y3: obj.top + obj.height,
-                    x4: obj.left + obj.width, y4: obj.top
-                }, {
-                    s1: 0, t1: 0,
-                    s2: 1, t2: 0,
-                    s3: 0, t3: 1,
-                    s4: 1, t4: 1
-                }, obj.color);
-
-                break;
-
-            case "DrawString":
-                this.RealDrawString(obj.left, obj.top, obj.font, obj.height, obj.text, obj.align);
-                break;
-
-            case "SetViewport":
-                this.Flush("Viewport Changed");
-
-                if (obj.x !== null) {
-                    viewport.x = obj.x;
-                    viewport.y = canvas.height - obj.y - obj.height;
-                    viewport.width = obj.width;
-                    viewport.height = obj.height;
-                }
-                else {
-                    viewport.x = 0;
-                    viewport.y = 0;
-                    viewport.width = canvas.width;
-                    viewport.height = canvas.height;
-                }
-
-                gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-                gl.uniformMatrix3fv(this.Shader.uProjection, false, mat3.projection(mat3.create(), viewport.width, viewport.height));
-
-                break;
-
-            case "DrawImage":
-                var imgEntry = this.images[obj.image];
-
-                if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
+        var length = subLayer.length;
+        for ( var i = 0; i < length; i++ )
+        {
+            var obj = subLayer[i];
+            switch (obj.type) {
+                case "DrawRect":
+                    this.Draw(this.WhiteTex, obj.Positions, obj.TexCoords, obj.Colors, 6);
                     break;
-                }
 
-                var u1 = obj.tcLeft,
-                    v1 = obj.tcTop,
-                    u2 = obj.tcRight,
-                    v2 = obj.tcBottom;
+                case "DrawImage":
+                    var imgEntry = this.images[obj.image];
 
-                this.DrawTexture(imgEntry.texture, {
-                    x1: obj.left,             y1: obj.top,
-                    x2: obj.left,             y2: obj.top + obj.height,
-                    x3: obj.left + obj.width, y3: obj.top + obj.height,
-                    x4: obj.left + obj.width, y4: obj.top
-                }, {
-                    s1: u1, t1: v1,
-                    s2: u1, t2: v2,
-                    s3: u2, t3: v2,
-                    s4: u2, t4: v1
-                }, obj.color);
+                    if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
+                        break;
+                    }
 
-                break;
-
-            case "DrawImageQuad":
-
-                var imgEntry = this.images[obj.image];
-
-                if (!imgEntry || !imgEntry.loaded || imgEntry.error) {
+                    this.Draw(imgEntry.texture, obj.Positions, obj.TexCoords, obj.Colors, 6);
                     break;
-                }
 
-                this.DrawTexture(imgEntry.texture, {
-                    x1: obj.x1, y1: obj.y1,
-                    x2: obj.x2, y2: obj.y2,
-                    x3: obj.x3, y3: obj.y3,
-                    x4: obj.x4, y4: obj.y4
-                }, {
-                    s1: obj.s1, t1: obj.t1,
-                    s2: obj.s2, t2: obj.t2,
-                    s3: obj.s3, t3: obj.t3,
-                    s4: obj.s4, t4: obj.t4
-                }, obj.color);
+                case "DrawString":
+                    this.RealDrawString(obj.left, obj.top, obj.font, obj.height, obj.text, obj.align);
+                    break;
 
-                break;
+                case "SetViewport":
+                    this.Flush("Viewport Changed");
 
-            default:
-                //console.log("not implemented: " + obj.type);
+                    if (obj.x !== null) {
+                        viewport.x = obj.x;
+                        viewport.y = canvas.height - obj.y - obj.height;
+                        viewport.width = obj.width;
+                        viewport.height = obj.height;
+                    }
+                    else {
+                        viewport.x = 0;
+                        viewport.y = 0;
+                        viewport.width = canvas.width;
+                        viewport.height = canvas.height;
+                    }
+
+                    gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+                    gl.uniformMatrix3fv(this.Shader.uProjection, false, mat3.projection(mat3.create(), viewport.width, viewport.height));
+
+                    break;
+
+                default:
+                    //console.log("not implemented: " + obj.type);
+            }
         }
-    } );
         subLayer.length = 0;
     } );
     } );
@@ -768,49 +654,104 @@ render.SetDrawColor = function SetDrawColor(r, g, b, a) {
         var col = render.ColorFromString(r);
         r = col.r, g = col.g, b = col.b, a = col.a;
     }
-    this.color = [r, g, b, a];
+    this.color[0] = r;
+    this.color[1] = g;
+    this.color[2] = b;
+    this.color[3] = a;
 }
 
 render.DrawRect = function DrawRect(left, top, width, height) {
     this.Insert({
-        left: left,
-        top: top,
-        width: width,
-        height: height,
-        color: this.color,
-        type: "DrawRect"
+        type: "DrawRect",
+
+        Positions: [
+            left,         top,
+            left,         top + height,
+            left + width, top + height,
+            left,         top,
+            left + width, top + height,
+            left + width, top,
+        ],
+        TexCoords: [
+            0, 0,
+            1, 0,
+            0, 1,
+            0, 0,
+            0, 0,
+            1, 1,
+        ],
+        Colors: [
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+        ],        
     });
 }
 
-render.DrawImage = function DrawImage(imgHandle, left, top, width, height, tcLeft, tcTop, tcRight, tcBottom) {
+render.DrawImage = function DrawImage(imgHandle, left, top, width, height, u1, v1, u2, v2) {
     this.Insert({
+        type: "DrawImage",
         image: imgHandle,
-        left: left,
-        top: top,
-        width: width,
-        height: height,
-        tcLeft: tcLeft, 
-        tcTop: tcTop,
-        tcRight: tcRight,
-        tcBottom: tcBottom,
-        color: this.color,
-        type: "DrawImage"
+
+        Positions: [
+            left,         top,
+            left,         top + height,
+            left + width, top + height,
+            left,         top,
+            left + width, top + height,
+            left + width, top,
+        ],
+        TexCoords: [
+            u1, v1,
+            u1, v2,
+            u2, v2,
+            u1, v1,
+            u2, v2,
+            u2, v1,
+        ],
+        Colors: [
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+        ],
     });
 }
 
 render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4) {
     this.Insert({
+        type: "DrawImage",
         image: imgHandle,
-        x1: x1, y1: y1,
-        x2: x2, y2: y2,
-        x3: x3, y3: y3,
-        x4: x4, y4: y4,
-        s1: s1, t1: t1,
-        s2: s2, t2: t2,
-        s3: s3, t3: t3,
-        s4: s4, t4: t4,
-        color: this.color,
-        type: "DrawImageQuad"
+
+        Positions: [
+            x1, y1,
+            x2, y2,
+            x3, y3,
+            x1, y1,
+            x3, y3,
+            x4, y4,
+        ],
+        TexCoords: [
+            s1, t1,
+            s2, t2,
+            s3, t3,
+            s1, t1,
+            s3, t3,
+            s4, t4,
+        ],
+        Colors: [
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+            this.color[0], this.color[1], this.color[2], this.color[3],
+        ],
     });
 }
 
