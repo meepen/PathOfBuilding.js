@@ -112,7 +112,7 @@
                             return render.Initialize();
                         } ).then(() => {
                             console.log("Starting Application");
-                            RunMainThread(L, "local js = require'emscripten'; js.LoadFileToDisk'./detours.lua'; dofile 'detours.lua'; dofile'../application.lua'").then(() => {
+                            RunMainThread(L, "local js = require'emscripten'; js.LoadFileToDisk'./detours.lua'; dofile 'detours.lua'; dofile'../application.lua' dofile'../optimizations.lua'").then(() => {
                                 // save filesystem
                                 FS.syncfs(err => {
                                     if (err) {

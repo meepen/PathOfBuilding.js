@@ -351,6 +351,7 @@ render.RunThread = function RunThread() {
     if (!this.luaThread) {
         this.luaThread = lua.lua_newthread(L);
         res = lua.luaL_loadstring(this.luaThread, `
+            init_logs()
             local events = ...
             while true do
                 for i = 1, #events do
@@ -755,11 +756,10 @@ render.DrawImage = function DrawImage(imgHandle, left, top, width, height, u1, v
     });
 }
 
-render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4, s1, t1, s2, t2, s3, t3, s4, t4) {
+render.DrawImageQuad1 = function DrawImageQuad1(imgHandle, x1, y1, x2, y2, x3, y3, x4, y4) {
     this.Insert({
         type: "DrawImage",
         image: imgHandle,
-
         Positions: [
             x1, y1,
             x2, y2,
@@ -768,14 +768,6 @@ render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3,
             x3, y3,
             x4, y4,
         ],
-        TexCoords: [
-            s1, t1,
-            s2, t2,
-            s3, t3,
-            s1, t1,
-            s3, t3,
-            s4, t4,
-        ],
         Colors: [
             this.color,
             this.color,
@@ -783,8 +775,19 @@ render.DrawImageQuad = function DrawImageQuad(imgHandle, x1, y1, x2, y2, x3, y3,
             this.color,
             this.color,
             this.color,
-        ],
+        ]
     });
+}
+
+render.DrawImageQuad2 = function DrawImageQuad2(s1, t1, s2, t2, s3, t3, s4, t4) {
+    this.subLayerObj[this.subLayerObj.length - 1].TexCoords = [
+        s1, t1,
+        s2, t2,
+        s3, t3,
+        s1, t1,
+        s3, t3,
+        s4, t4,
+    ];
 }
 
 render.DrawString = function DrawString(left, top, align, height, font, text) {

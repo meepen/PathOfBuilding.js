@@ -1,25 +1,28 @@
 local js = require "emscripten"
 
 
-local wait_time = 0.1
+local wait_time = 0.001
 local next_time = os.clock() + wait_time
 local logs = {
     samples = 0
 }
-debug.sethook(function(e)
-    local now = os.clock()
-    if (now < next_time) then
-        return
-    end
 
-    next_time = now + wait_time
+function init_logs()
+    debug.sethook(function(e)
+        local now = os.clock()
+        if (now < next_time) then
+            return
+        end
 
-    local source = debug.getinfo(2)
-    local id = source.short_src..":"..source.currentline
+        next_time = now + wait_time
 
-    logs[id] = (logs[id] or 0) + 1
-    logs.samples = logs.samples + 1
-end, "l")
+        local source = debug.getinfo(2)
+        local id = source.short_src..":"..source.currentline
+
+        logs[id] = (logs[id] or 0) + 1
+        logs.samples = logs.samples + 1
+    end, "l")
+end
 
 function reset_logs()
     local tmp = {}
@@ -29,7 +32,7 @@ function reset_logs()
         end
     end
     table.sort(tmp, function(a,b) return a[1] > b[1] end)
-    for i = 1, #tmp do
+    for i = 1, math.min(10, #tmp) do
         print(string.format("%.02f%% - %s", tmp[i][1] / logs.samples * 100, tmp[i][2]))
     end
     logs = {

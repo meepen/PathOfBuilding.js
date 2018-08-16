@@ -60,8 +60,9 @@ static int DrawImage(lua_State *L) {
 }
 
 static int DrawImageQuad(lua_State *L) {
+	// blame these defines for not supporting more than 10 args
 	EM_ASM_(({
-		_js_arguments = [$0, $1, $2, $3, $4, $5, $6, $7, $8, $9];
+		render.DrawImageQuad1($0, $1, $2, $3, $4, $5, $6, $7, $8);
 	}),
 		lua_tonumber(L, 1),
 		lua_tonumber(L, 2),
@@ -71,14 +72,12 @@ static int DrawImageQuad(lua_State *L) {
 		lua_tonumber(L, 6),
 		lua_tonumber(L, 7),
 		lua_tonumber(L, 8),
-		lua_tonumber(L, 9),
-		lua_tonumber(L, 10)
+		lua_tonumber(L, 9)
 	);
 	EM_ASM_(({
-		_js_arguments.push($0, $1, $2, $3, $4, $5, $6);
-		render.DrawImageQuad.apply(render, _js_arguments);
-		delete _js_arguments;
+		render.DrawImageQuad2($0, $1, $2, $3, $4, $5, $6, $7);
 	}),
+		lua_tonumber(L, 10),
 		lua_tonumber(L, 11),
 		lua_tonumber(L, 12),
 		lua_tonumber(L, 13),
