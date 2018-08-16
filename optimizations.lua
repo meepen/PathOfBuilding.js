@@ -21,8 +21,14 @@ for i = 0, debug.getinfo(PassiveTreeViewClass.Draw).nups - 1 do
     end
 end
 
+local OverlayTypeIgnore = {
+    ClassStart = true,
+    AscendClassStart = true
+}
 
 function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
+    local OverlayTypeIgnore = OverlayTypeIgnore
+
 	local tree = build.tree
 	local spec = build.spec
 
@@ -406,7 +412,7 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 
 		if overlay then
 			-- Draw overlay
-			if node.type ~= "ClassStart" and node.type ~= "AscendClassStart" then
+			if not OverlayTypeIgnore[node.type] then
 				if hoverNode and hoverNode ~= node then
 					-- Mouse is hovering over a different node
 					if hoverDep and hoverDep[node] then

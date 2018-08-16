@@ -24,6 +24,8 @@ function init_logs()
     end, "l")
 end
 
+function init_logs() end
+
 function reset_logs()
     local tmp = {}
     for id, count in pairs(logs) do
