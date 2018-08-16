@@ -358,6 +358,7 @@ render.RunThread = function RunThread() {
                     runCallback(event.type, event.arg)
                 end
                 runCallback("OnFrame")
+                reset_logs()
                 events = coroutine.yield()
             end
         `);
@@ -808,6 +809,51 @@ render.DrawStringCursorIndex = function DrawStringCursorIndex() {
     });
 }
 
+function ab2str(buf) {
+    return String.fromCharCode.apply(null, new Uint16Array(buf));
+}
+function str2ab(str) {
+    var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    var bufView = new Uint16Array(buf);
+    for (var i=0, strLen=str.length; i < strLen; i++) {
+        bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+}
+
+render.LoadDataURL = function(name) {
+    return new Promise((r, rej) => {
+        try {
+            // check if file exists already
+            FS.stat("imgdata/" + name);
+            r();
+        } catch(e) {
+            // proxy server
+            var url = `http://144.202.109.121:9000/?url=${localStorage[name]}`;
+            var xhr = new XMLHttpRequest();
+            xhr.onload = () => {
+                var reader = new FileReader();
+                reader.onloadend = () => {
+                    this.MakeDirectories("imgdata/" + name);
+                    try {
+                        FS.writeFile("imgdata/" + name, reader.result);
+                        r();
+                    }
+                    catch(e) {
+                        rej(e);
+                    }
+                }
+                reader.readAsDataURL(xhr.response);
+            };
+            xhr.onerror = rej;
+            xhr.open("GET", url);
+            xhr.responseType = "blob";
+            xhr.overrideMimeType(`image/${name.match(/\.([^\.]+)$/)[1]}`);
+            xhr.send();
+        }
+    });
+}
+
 render.LoadImage = function LoadImage(name, mode) {
     if (this.imageLookup.hasOwnProperty(name))
     {
@@ -820,15 +866,13 @@ render.LoadImage = function LoadImage(name, mode) {
         loaded: false,
         error: false,
         image: new Image(),
+        texture: gl.createTexture()
     };
+
     var img = obj.image;
-
-    obj.texture = gl.createTexture();
-
     img.crossOrigin = "anonymous";
 
     img.onload = () => {
-        console.log( "ONLOAD!", name );
         gl.bindTexture(gl.TEXTURE_2D, obj.texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 
@@ -854,7 +898,7 @@ render.LoadImage = function LoadImage(name, mode) {
     img.onerror = () => {
         gl.bindTexture(gl.TEXTURE_2D, obj.texture);
 
-        var pinkRGBA = new Uint8Array([255, 0, 220, 255]);
+        var pinkRGBA = Uint8Array.from([255, 0, 220, 255]);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pinkRGBA);
 
         obj.width = 1;
@@ -864,7 +908,15 @@ render.LoadImage = function LoadImage(name, mode) {
         obj.error = true;
     };
 
-    obj.image.src = `http://144.202.109.121:9000/?url=${localStorage[name]}`;
+    render.LoadDataURL(name).then(() => {
+        console.log("IMAGE SUCCEEDED " + name);
+        obj.image.src = FS.readFile("imgdata/" + name, {encoding:"utf8"}); // `http://144.202.109.121:9000/?url=${localStorage[name]}`;
+    }).catch(e => {
+        console.log(e);
+        console.log("IMAGE FAILED " + name);
+        img.onerror();
+    });
+
 
     var idx = this.images.push(obj) - 1;
     this.imageLookup[name] = idx;
@@ -888,26 +940,55 @@ render.fileRequests = []
 var up_dir_hack = /[^\/]+\/\.\.\//g
 var newline_replace = /^#[^\n]+/;
 
-render.LoadFile = function LoadFile(name) {
-    var obj = {
-        loaded: false,
-        data: null,
+render.FilesLoaded = Object.create(null);
+
+render.MakeDirectories = function MakeDirectories(filepath) {
+    name = "." + new URL(filepath, "http://e").pathname;
+    var regex = /[^/]+/g;
+    var dir = "";
+    var m = name.match(regex);
+    for (var i = 0; i < m.length - 1; i++) {
+        if (i === 0 && m[i] == ".")
+            continue;
+
+        dir = dir + "/" + m[i];
+        try {
+            FS.mkdir(dir);
+        } catch(e) { }
     }
+}
 
-    fetch(name.replace(up_dir_hack, "")).then( res => {
+render.MakeDirectories("TreeData/2_6/tree.lua")
+render.MakeDirectories("TreeData/3_0/tree.lua")
+
+render.LoadFileToDisk = function LoadFileToDisk(name, destname) {
+    name = "." + new URL(name, "http://e").pathname;
+
+    if (name in this.FilesLoaded) 
+        return this.FilesLoaded[name];
+
+    this.FilesLoaded[name] = false;
+
+    console.log("LOADING " + name);
+    fetch(name.replace(up_dir_hack, "")).catch(() => {
+        console.log("FAILED " + name);
+        this.FilesLoaded[name] = true;
+    }).then( res => {
         res.text().then( data => {
-            obj.loaded = true;
-            obj.data = data.replace(newline_replace, "");
-        } );
+            if (res.status !== 200)
+                throw new Error("not successful");
+            console.log("LOADED " + name);
+            render.MakeDirectories(name);
+            this.FilesLoaded[name] = true;
+            FS.writeFile(name || destname, data.replace(newline_replace, ""));
+        } ).catch(e => {
+            console.log("FAILED " + name);
+            this.FilesLoaded[name] = true;
+        })
     } );
-
-    return this.fileRequests.push(obj) - 1;
 }
 
-render.IsFileLoaded = function IsFileLoaded(idx) {
-    return this.fileRequests[idx].loaded;
-}
-
-render.FileData = function FileData(idx) {
-    return this.fileRequests[idx].data;
+render.IsFileLoaded = function IsFileLoaded(name) {
+    name = "." + new URL(name, "http://e").pathname;
+    return !!this.FilesLoaded[name];
 }

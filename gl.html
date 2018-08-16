@@ -97,23 +97,36 @@
                         });
                     }
 
-                    loadScript("gl-fonts.js").then(() => {
-                        console.log( "Loaded gl-fonts library" );
-                    } ).then( () => {
-                        return loadScript( "renderer-gl.js" );
-                    } ).then(() => {
-                        console.log( "render.Initialize" );
-                        return render.Initialize();
-                    } ).then(() => {
-                        console.log("Starting Application");
-                        RunMainThread(L, "local js = require'emscripten'; js.LoadFile'./detours.lua'(); dofile'../application.lua'").then(() => {
-                            var callback = function callback() {
-                                render.AdvanceFrame();
+                    FS.mkdir("/imgdata");
+                    FS.mount(IDBFS, {}, "/imgdata");
+                    FS.syncfs(true, err => {
+                        if (err)
+                            console.log("syncing failed: ", err);
+
+                        loadScript("gl-fonts.js").then(() => {
+                            console.log( "Loaded gl-fonts library" );
+                        } ).then( () => {
+                            return loadScript( "renderer-gl.js" );
+                        } ).then(() => {
+                            console.log( "render.Initialize" );
+                            return render.Initialize();
+                        } ).then(() => {
+                            console.log("Starting Application");
+                            RunMainThread(L, "local js = require'emscripten'; js.LoadFileToDisk'./detours.lua'; dofile 'detours.lua'; dofile'../application.lua'").then(() => {
+                                // save filesystem
+                                FS.syncfs(err => {
+                                    if (err) {
+                                        console.log("saving failed: ", err);
+                                    }
+                                });
+                                var callback = function callback() {
+                                    render.AdvanceFrame();
+                                    requestAnimationFrame(callback);
+                                }
                                 requestAnimationFrame(callback);
-                            }
-                            requestAnimationFrame(callback);
+                            });
                         });
-                    })
+                    });
                 }
     
                 fetch("lua535.wasm").then(wasm => wasm.arrayBuffer()).then(wasm => {

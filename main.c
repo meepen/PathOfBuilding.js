@@ -3,6 +3,7 @@
 #include <emscripten.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#include <string.h>
 #include "lua.h"
 
 struct reg {
@@ -166,54 +167,7 @@ static int SetTitle(lua_State *L) {
 	return 0;
 }
 
-static int AppendFile(lua_State *L) {
-	EM_ASM_(({
-		localStorage[Pointer_stringify($0)] += Pointer_stringify($1);
-	}), lua_tostring(L, 1), lua_tostring(L, 2));
-	return 0;
-}
-static int SetFileData(lua_State *L) {
-	if (lua_type(L, 2) == LUA_TSTRING) {
-		EM_ASM_(({
-			localStorage[Pointer_stringify($0)] = Pointer_stringify($1);
-		}), lua_tostring(L, 1), lua_tostring(L, 2));
-	}
-	else {
-		EM_ASM_(({
-			delete localStorage[Pointer_stringify($0)];
-		}), lua_tostring(L, 1));
-	}
-	return 0;
-}
-static int GetFileData(lua_State *L) {
-	char *str = (char *)EM_ASM_INT(({
-		var str = localStorage[Pointer_stringify($0)];
-		if (str === undefined)
-			return 0;
-		var bufferSize = Module.lengthBytesUTF8(str);
-		var bufferPtr = Module._malloc(bufferSize + 1);
-		Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
-		return bufferPtr;
-	}), lua_tostring(L, 1));
-
-	lua_pushstring(L, str);
-
-	free(str);
-
-	return 1;
-}
-
-static int LoadImage(lua_State *L)
-{
-	int idx = EM_ASM_INT(({
-		return render.LoadImage(Pointer_stringify($0, $1));
-	}), lua_tostring(L, 1), lua_tostring(L, 2));
-
-	lua_pushnumber(L, idx);
-	return 1;
-}
-
-static int ImageSizeCont(lua_State *L, int status, lua_KContext ctx)
+static int LoadImageCont(lua_State* L, int status, lua_KContext ctx)
 {
 	int idx = (int) ctx;
 
@@ -231,60 +185,55 @@ static int ImageSizeCont(lua_State *L, int status, lua_KContext ctx)
 			return render.ImageHeight($0);
 		}), idx);
 
+		lua_pushnumber(L, idx);
 		lua_pushnumber(L, width);
 		lua_pushnumber(L, height);
-		return 2;
+		return 3;
 	}
 
 	// Keep yielding until the image has loaded
-	lua_pushstring(L, "ImageSize!");
-	return lua_yieldk(L, 1, ctx, ImageSizeCont);
+	lua_pushstring(L, "LoadImage!");
+	return lua_yieldk(L, 1, ctx, LoadImageCont);
 }
 
-static int ImageSize(lua_State *L)
-{
-	int idx = luaL_checknumber(L, 1);
+static int LoadImage(lua_State *L) {
+	int idx = EM_ASM_INT(({
+		return render.LoadImage(Pointer_stringify($0));
+	}), lua_tostring(L, 1));
 
-	lua_pushstring(L, "ImageSize!");
-	return lua_yieldk(L, 1, (lua_KContext) idx, ImageSizeCont);
+	lua_pushstring(L, "LoadImage!");
+	return lua_yieldk(L, 1, (lua_KContext) idx, LoadImageCont);
 }
 
-static int LoadFileCont(lua_State* L, int status, lua_KContext ctx)
-{
-	int idx = (int) ctx;
+static int LoadFileToDiskCont(lua_State* L, int status, lua_KContext ctx) {
+	const char *fname  = (const char *) ctx;
 
 	int loaded = EM_ASM_INT(({
-		return render.IsFileLoaded($0) ? 1 : 0;
-	}), idx);
+		return render.IsFileLoaded(Pointer_stringify($0)) ? 1 : 0;
+	}), fname);
 
-	if ( loaded )
-	{
-		char *data = (char *) EM_ASM_INT(({
-			var str = render.FileData($0);
-			var bufferSize = Module.lengthBytesUTF8(str);
-			var bufferPtr = Module._malloc(bufferSize + 1);
-			Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
-			return bufferPtr;
-		}), idx);
-
-		if ( luaL_loadstring(L, data) != LUA_OK )
-			lua_error(L);
-
-		return 1;
-	}
+	// if we loaded, return
+	if (loaded)
+		return 0;
 
 	// Keep yielding until the file has loaded
 	lua_pushstring(L, "LoadFile!");
-	return lua_yieldk(L, 1, ctx, LoadFileCont);
+	return lua_yieldk(L, 1, ctx, LoadFileToDiskCont);
 }
 
-static int LoadFile(lua_State *L) {
+static int LoadFileToDisk(lua_State *L) {
+	const char *fname = lua_tostring(L, 1);
+
 	int idx = EM_ASM_INT(({
-		return render.LoadFile(Pointer_stringify($0));
+		return render.LoadFileToDisk(Pointer_stringify($0));
 	}), lua_tostring(L, 1));
 
+	if (idx == -1) {
+		return 0;
+	}
+
 	lua_pushstring(L, "LoadFile!");
-	return lua_yieldk(L, 1, (lua_KContext) idx, LoadFileCont); 
+	return lua_yieldk(L, 1, (lua_KContext)fname, LoadFileToDiskCont); 
 }
 
 static int IsKeyDown(lua_State *L) {
@@ -309,12 +258,8 @@ struct reg emscripten[] = {
 	{"SetViewport", &SetViewport},
 	{"GetCursorPos", &GetCursorPos},
 	{"SetTitle", &SetTitle},
-	{"GetFileData", &GetFileData},
-	{"AppendFile", &AppendFile},
-	{"SetFileData", &SetFileData},
 	{"LoadImage", &LoadImage},
-	{"ImageSize", &ImageSize},
-	{"LoadFile", &LoadFile},
+	{"LoadFileToDisk", &LoadFileToDisk},
 	{"IsKeyDown", &IsKeyDown},
 	{0, 0}
 };

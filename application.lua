@@ -31,15 +31,11 @@ function NewImageHandle()
 	return setmetatable({}, imagemt)
 end
 function imageHandleClass:Load(fileName, mode)
-	self.idx = js.LoadImage(fileName, mode)
+	self.idx, self.width, self.height = js.LoadImage(fileName, mode)
 end
 function imageHandleClass:Unload() end
 function imageHandleClass:SetLoadingPriority(pri) end
 function imageHandleClass:ImageSize()
-	if not self.width or not self.height then
-		self.width, self.height = js.ImageSize(self.idx)
-	end
-
 	return self.width, self.height
 end
 
@@ -84,7 +80,7 @@ function DrawString(left, top, align, height, font, text)
 	js.DrawString(left, top, align, height, font, text)
 end
 function DrawStringWidth(height, font, text)
-	return js.DrawStringWidth(height, font, text);
+	return js.DrawStringWidth(height, font, text)
 end
 function DrawStringCursorIndex(height, font, text, cursorX, cursorY)
 	return 0

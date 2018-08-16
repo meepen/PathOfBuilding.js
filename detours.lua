@@ -1,58 +1,63 @@
 local js = require "emscripten"
 
+
+local wait_time = 0.1
+local next_time = os.clock() + wait_time
+local logs = {
+    samples = 0
+}
+debug.sethook(function(e)
+    local now = os.clock()
+    if (now < next_time) then
+        return
+    end
+
+    next_time = now + wait_time
+
+    local source = debug.getinfo(2)
+    local id = source.short_src..":"..source.currentline
+
+    logs[id] = (logs[id] or 0) + 1
+    logs.samples = logs.samples + 1
+end, "l")
+
+function reset_logs()
+    local tmp = {}
+    for id, count in pairs(logs) do
+        if (id ~= "samples") then
+            tmp[#tmp + 1] = {count, id}
+        end
+    end
+    table.sort(tmp, function(a,b) return a[1] > b[1] end)
+    for i = 1, #tmp do
+        print(string.format("%.02f%% - %s", tmp[i][1] / logs.samples * 100, tmp[i][2]))
+    end
+    logs = {
+        samples = 0
+    }
+end
+
 package.path = "./runtime/?.lua;./PathOfBuilding/?.lua"
 
+local old_loadfile = loadfile
 function loadfile(str)
-    return js.LoadFile("./PathOfBuilding/" .. str)
+    str = "PathOfBuilding/"..str
+    js.LoadFileToDisk(str)
+    local fn, err = old_loadfile(str)
+    if (not fn) then
+        error(err)
+    end
+    return fn
 end
 function dofile(str)
     return loadfile(str)()
 end
 
--- create a fake io library
-io = {}
-
 -- don't check for updates
-js.SetFileData("UpdateCheck.lua", "")
+local update = io.open("UpdateCheck.lua", "wb")
+update:close()
 -- don't run first run files
-js.SetFileData("first.run", nil)
-
-local FILE = {}
-local FILE_MT = {
-    __index = FILE
-}
-function FILE:close()
-end
-function FILE:flush()
-end
-function FILE:read(what)
-    if (what == "*a") then
-        return js.GetFileData(self.path)
-    else
-        error("not implemented: "..what)
-    end
-end
-function FILE:write(...)
-    if self.mode ~= "w" and self.mode ~= "wb" then
-        return
-    end
-
-    for _, data in pairs{...--[[sue me]]} do
-        js.AppendFile(self.path, data)
-    end
-end
-function io.open(fpath, mode)
-    if (mode:find "r" and not js.GetFileData(fpath)) then
-        return
-    end
-    if (mode == "w" or mode == "wb") then
-        js.SetFileData(fpath, "")
-    end
-    return setmetatable({
-        path = fpath,
-        mode = mode
-    }, FILE_MT);
-end
+os.remove("first.run")
 
 -- 5.1 compat
 unpack = table.unpack
@@ -62,35 +67,29 @@ function loadstring(str)
     return load(str, nil, "t")
 end
 
--- string.format safety net
+-- string.format safety net (luajit compat)
 do
     local original = string.format
 
     function string.format( format, ... )
+        -- todo: maybe do this better?
+        format = format:gsub("(%%%+*)d", "%1.2f")
         local success, output = pcall( original, format, ... )
 
         if success then return output end
+        print(output, format, ...)
         return "(Failed) " .. format
     end
 end
 
 do
+    local old_require = require
     function require(str, ...)
-        local loaded = package.preload[str] or package.loaded[str]
-        if (loaded) then
-            return loaded
-        end
-
         local str2 = str:gsub("%.","/")
         for m in package.path:gmatch "[^;]+" do
-            local data = js.LoadFile(m:gsub("?", str2))
-            if (data) then
-                loaded = data(...)
-                package.loaded[str] = loaded
-                return loaded
-            end
+            js.LoadFileToDisk(m:gsub("?", str2))
         end
 
-        error("couldn't find "..str)
+        return old_require(str)
     end
 end
