@@ -46,22 +46,21 @@ static int SetDrawColor(lua_State *L) {
 
 static int DrawImage(lua_State *L) {
 	if (lua_type(L, 1) != LUA_TNIL) {
-
 		lua_getfield(L, 1, "idx");
-		int idx = lua_tonumber(L, -1);
-		lua_pop(L, 1);
 
-		if (lua_gettop(L) == 5) {
+		if (lua_gettop(L) == 6) {
 			EM_ASM_(({
 				render.DrawImage($0, $1, $2, $3, $4, 0, 0, 1, 1);
-			}), idx, lua_tonumber(L, 2), lua_tonumber(L, 3), lua_tonumber(L, 4), lua_tonumber(L, 5));
+			}), (int)lua_tonumber(L, -1), lua_tonumber(L, 2), lua_tonumber(L, 3), lua_tonumber(L, 4), lua_tonumber(L, 5));
 		}
 		else {
 			EM_ASM_(({
 				render.DrawImage($0, $1, $2, $3, $4, $5, $6, $7, $8);
-			}), idx, lua_tonumber(L, 2), lua_tonumber(L, 3), lua_tonumber(L, 4), lua_tonumber(L, 5),
+			}), (int)lua_tonumber(L, -1), lua_tonumber(L, 2), lua_tonumber(L, 3), lua_tonumber(L, 4), lua_tonumber(L, 5),
 				lua_tonumber(L, 6), lua_tonumber(L, 7), lua_tonumber(L, 8), lua_tonumber(L, 9));
 		}
+
+		lua_pop(L, 1);
 	}
 	else {
 		EM_ASM_(({
@@ -72,11 +71,19 @@ static int DrawImage(lua_State *L) {
 }
 
 static int DrawImageQuad(lua_State *L) {
+
 	// blame these defines for not supporting more than 10 args
+	int idx = 0;
+	if (lua_type(L, 1) != LUA_TNIL) {
+		lua_getfield(L, 1, "idx");
+		idx = lua_tonumber(L, -1),
+		lua_pop(L, 1);
+	}
+
 	EM_ASM_(({
 		render.DrawImageQuad1($0, $1, $2, $3, $4, $5, $6, $7, $8);
 	}),
-		lua_tonumber(L, 1),
+		idx,
 		lua_tonumber(L, 2),
 		lua_tonumber(L, 3),
 		lua_tonumber(L, 4),
@@ -86,6 +93,7 @@ static int DrawImageQuad(lua_State *L) {
 		lua_tonumber(L, 8),
 		lua_tonumber(L, 9)
 	);
+
 	EM_ASM_(({
 		render.DrawImageQuad2($0, $1, $2, $3, $4, $5, $6, $7);
 	}),
