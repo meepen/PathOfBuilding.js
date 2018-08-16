@@ -1,7 +1,7 @@
 local js = require "emscripten"
 
 
-local wait_time = 0.001
+local wait_time = 0.0005
 local next_time = os.clock() + wait_time
 local logs = {
     samples = 0

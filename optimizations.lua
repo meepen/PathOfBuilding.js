@@ -367,7 +367,8 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 		end
 
 		-- Convert node position to screen-space
-		local scrX, scrY = treeToScreen(node.x, node.y)
+		local scrX, scrY = node.x * scale + offsetX,
+		       node.y * scale + offsetY
 	
 		-- Determine color for the base artwork
 		if node.ascendancyName and node.ascendancyName ~= spec.curAscendClassName then
@@ -473,5 +474,27 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 				DrawImage(self.ring, scrX - size, scrY - size, size * 2, size * 2)				
 			end
 		end
+	end
+end
+
+function PassiveTreeViewClass:DrawAsset(data, x, y, scale, isHalf)
+    local width = data.width
+	if width == 0 then
+		width, data.height = data.handle:ImageSize()
+        data.width = width
+		if data.width == 0 then
+			return
+		end
+	end
+
+	width = width * scale * 1.33
+	local height = data.height * scale * 1.33
+	if isHalf then
+		DrawImage(data.handle, x - width, y - height * 2, width * 2, height * 2)
+		DrawImage(data.handle, x - width, y, width * 2, height * 2, 0, 1, 1, 0)
+	elseif data[1] then
+		DrawImage(data.handle, x - width, y - height, width * 2, height * 2, data[1], data[2], data[3], data[4])
+    else
+		DrawImage(data.handle, x - width, y - height, width * 2, height * 2)
 	end
 end
