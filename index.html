@@ -1,5 +1,3 @@
-<!doctype html>
-
 <html>
     <head>
         <style>
@@ -9,109 +7,133 @@
         </style>
     </head>
     <body>
-        <canvas id="render"></canvas>
+        <!--
+            https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context
+        -->
+        <canvas id="gl"></canvas>
+        <script src="gl-matrix.js"></script>
         <script>
-            var Module = {};
-
-            function loadScript(name) {
-                return new Promise((res, rej) => {
-                    var script = document.createElement('script');
-                    script.src = name;
-                    script.onload = res;
-                    script.onerror = script.onabort = res;
-                    document.body.appendChild(script);
-                });
-            }
-
-            function finished() {
-                window.lua = {};
-                lua.luaL_newstate = function() {
-                    var L = Module._luaL_newstate();
-                    Module._luaL_openlibs(L);
-                    Module._lua_openemscripten(L);
-                    return L;
-                }
-                lua.lua_call = function(L, nargs, nrets) {
-                    Module._lua_call(L, nargs, nrets);
-                }
-                lua.luaL_loadstring = function(L, str) {
-                    var bufferSize = Module.lengthBytesUTF8(str);
-                    var bufferPtr = Module._malloc(bufferSize + 1);
-                    Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
-                    var res = Module.ccall("luaL_loadstring", "number", ["number", "number"], [L, bufferPtr]);
-                    Module._free(bufferPtr);
-                    return res;
-                }
-                lua.lua_newthread = Module.cwrap("lua_newthread", "number", ["number"]);
-                lua.lua_resume = Module.cwrap("lua_resume", "number", ["number", "number", "number"]);
-                lua.lua_tostring = Module.cwrap("lua_tostring", "string", ["number", "number"]);
-                lua.lua_pushstring = Module.cwrap("lua_pushstring", null, ["number", "string"]);
-                lua.lua_pop = Module.cwrap("lua_pop", null, ["number", "number"]);
-                lua.lua_pushnumber = Module.cwrap("lua_pushnumber", null, ["number", "number"]);
-                lua.lua_tonumberx = Module.cwrap("lua_tonumberx", "number", ["number", "number", "number"]);
-                lua.lua_tonumber = function(L, npos) {
-                    return lua.lua_tonumberx(L, npos, 0);
-                }
-                lua.lua_type = Module.cwrap("lua_type", "number", ["number", "number"]);
-                lua.lua_createtable = Module.cwrap("lua_createtable", null, ["number", "number", "number"]);
-                lua.lua_setfield = Module.cwrap("lua_setfield", null, ["number", "number", "string"]);
-
-                // pathofbuilding code
-                var L = window.L = lua.luaL_newstate();
-
-                window.ContinueMainThread = function ContinueThread(L, onFinish) {
-                    var ret = lua.lua_resume(L, 0, 0);
-                    if (ret == 1) {
-                        var str = lua.lua_tostring(L, 1);
-                        console.log("yielding: " + str);
-                        lua.lua_pop(L, 1);
-                        return setTimeout(ContinueThread, 0, L, onFinish);
-                    }
-                    else if (ret != 0) {
-                        console.log("error: " + lua.lua_tostring(L, -1));
-                        lua.lua_pop(L, 1);
-                        return;
-                    }
-                    
-                    onFinish();
-                }
-
-                window.RunMainThread = function RunMainThread(Lmain, str) {
+                var Module = {};
+    
+                function loadScript(name) {
                     return new Promise((res, rej) => {
-                        var L = lua.lua_newthread(Lmain);
-            
-                        var err = lua.luaL_loadstring(L, str.replace(newline_replace, ""));
-            
-                        if (err !== 0) {
-                            err = new Error(lua.lua_tostring(L, -1));
-                            lua.lua_pop(L, 1);
-            
-                            rej(err);
-                        }
-
-                        ContinueMainThread(L, res);
-                        lua.lua_pop(Lmain, 1);
+                        var script = document.createElement('script');
+                        script.src = name;
+                        script.onload = res;
+                        script.onerror = script.onabort = res;
+                        document.body.appendChild(script);
                     });
                 }
-
-                loadScript("renderer.js").then(() => {
-                    console.log("Starting Application");
-                    RunMainThread(L, "local js = require'emscripten'; js.LoadFile'./detours.lua'(); dofile'../application.lua'").then(() => {
-                        var callback = function callback() {
-                            render.AdvanceFrame();
-                            requestAnimationFrame(callback)
+    
+                function finished() {
+                    window.lua = {};
+                    lua.luaL_newstate = function() {
+                        var L = Module._luaL_newstate();
+                        Module._luaL_openlibs(L);
+                        Module._lua_openemscripten(L);
+                        return L;
+                    }
+                    lua.lua_call = function(L, nargs, nrets) {
+                        Module._lua_call(L, nargs, nrets);
+                    }
+                    lua.luaL_loadstring = function(L, str) {
+                        var bufferSize = Module.lengthBytesUTF8(str);
+                        var bufferPtr = Module._malloc(bufferSize + 1);
+                        Module.stringToUTF8(str, bufferPtr, bufferSize + 1);
+                        var res = Module.ccall("luaL_loadstring", "number", ["number", "number"], [L, bufferPtr]);
+                        Module._free(bufferPtr);
+                        return res;
+                    }
+                    lua.lua_newthread = Module.cwrap("lua_newthread", "number", ["number"]);
+                    lua.lua_resume = Module.cwrap("lua_resume", "number", ["number", "number", "number"]);
+                    lua.lua_tostring = Module.cwrap("lua_tostring", "string", ["number", "number"]);
+                    lua.lua_pushstring = Module.cwrap("lua_pushstring", null, ["number", "string"]);
+                    lua.lua_pop = Module.cwrap("lua_pop", null, ["number", "number"]);
+                    lua.lua_pushnumber = Module.cwrap("lua_pushnumber", null, ["number", "number"]);
+                    lua.lua_tonumberx = Module.cwrap("lua_tonumberx", "number", ["number", "number", "number"]);
+                    lua.lua_tonumber = function(L, npos) {
+                        return lua.lua_tonumberx(L, npos, 0);
+                    }
+                    lua.lua_type = Module.cwrap("lua_type", "number", ["number", "number"]);
+                    lua.lua_createtable = Module.cwrap("lua_createtable", null, ["number", "number", "number"]);
+                    lua.lua_setfield = Module.cwrap("lua_setfield", null, ["number", "number", "string"]);
+                    lua.lua_rawseti = Module.cwrap("lua_rawseti", null, ["number", "number", "number"]);
+    
+                    // pathofbuilding code
+                    var L = window.L = lua.luaL_newstate();
+    
+                    window.ContinueMainThread = function ContinueThread(L, onFinish) {
+                        var ret = lua.lua_resume(L, 0, 0);
+                        if (ret == 1) {
+                            var str = lua.lua_tostring(L, 1);
+                            console.log("yielding: " + str);
+                            lua.lua_pop(L, 1);
+                            return setTimeout(ContinueThread, 0, L, onFinish);
                         }
-                        requestAnimationFrame(callback);
-                    });
-                })
-            }
+                        else if (ret != 0) {
+                            console.log("error: " + lua.lua_tostring(L, -1));
+                            lua.lua_pop(L, 1);
+                            return;
+                        }
+                        
+                        onFinish();
+                    }
+    
+                    window.RunMainThread = function RunMainThread(Lmain, str) {
+                        return new Promise((res, rej) => {
+                            var L = lua.lua_newthread(Lmain);
+                
+                            var err = lua.luaL_loadstring(L, str.replace(newline_replace, ""));
+                
+                            if (err !== 0) {
+                                err = new Error(lua.lua_tostring(L, -1));
+                                lua.lua_pop(L, 1);
+                
+                                rej(err);
+                            }
+    
+                            ContinueMainThread(L, res);
+                            lua.lua_pop(Lmain, 1);
+                        });
+                    }
 
-            fetch("lua535.wasm").then(wasm => wasm.arrayBuffer()).then(wasm => {
-                Module.wasmBinary = wasm
-                Module.onRuntimeInitialized = finished
-                loadScript("lua535.js");
-            });
+                    FS.mkdir("/imgdata");
+                    FS.mount(IDBFS, {}, "/imgdata");
+                    FS.syncfs(true, err => {
+                        if (err)
+                            console.log("syncing failed: ", err);
+
+                        loadScript("gl-fonts.js").then(() => {
+                            console.log( "Loaded gl-fonts library" );
+                        } ).then( () => {
+                            return loadScript( "renderer.js" );
+                        } ).then(() => {
+                            console.log( "render.Initialize" );
+                            return render.Initialize();
+                        } ).then(() => {
+                            console.log("Starting Application");
+                            RunMainThread(L, "local js = require'emscripten'; js.LoadFileToDisk'./detours.lua'; dofile 'detours.lua'; dofile'../application.lua'").then(() => {
+                                // save filesystem
+                                FS.syncfs(err => {
+                                    if (err) {
+                                        console.log("saving failed: ", err);
+                                    }
+                                });
+                                var callback = function callback() {
+                                    render.AdvanceFrame();
+                                    requestAnimationFrame(callback);
+                                }
+                                requestAnimationFrame(callback);
+                            });
+                        });
+                    });
+                }
+    
+                fetch("lua535.wasm").then(wasm => wasm.arrayBuffer()).then(wasm => {
+                    Module.wasmBinary = wasm
+                    Module.onRuntimeInitialized = finished
+                    loadScript("lua535.js");
+                });
         </script>
     </body>
-
 </html>
